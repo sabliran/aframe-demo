@@ -2,42 +2,186 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>A-Frame Demo</title>
-  <meta name="description" content="A-Frame VR Demo">
-  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <title>VR Room Teleporter</title>
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
 </head>
 <body>
-
-  <a-scene background="color: #F0F8FF">
-    <!-- Sky -->
-    <a-sky color="#DC143C"></a-sky> 
-    <!-- Ground -->
-    <a-plane position="0 0 0" rotation="-90 0 0" width="50" height="50" color="#white"></a-plane>
-    
-    <!-- Red Box -->
-    <a-box position="-2 1.5 -5" color="#0f3460" animation="property: position; to: -2 2.5 -5; dur: 1000; easing: easeInOutSine; loop: true; dir: alternate"></a-box>
-    
-    <!-- Green Sphere -->
-    <a-sphere position="0 1.5 -5" color="#0f3460" radius="0.8" animation="property: rotation; to: 0 360 0; dur: 3000; loop: true"></a-sphere>
-    
-    <!-- Yellow Cone -->
-    <a-cone position="2 1 -5" color="#f5c518" radius-bottom="0.5" radius-top="0"></a-cone>
-
-    <a-cone position="8 1 -5" color="#f5c518" radius-bottom="0.5" radius-top="0"></a-cone>
-    
-    <!-- Text -->
-    <a-text value="Hello A-Frame!" position="0 3.5 -5" align="center" color="#ffffff" width="6"></a-text>
-    
-    <!-- Lights -->
-    <a-light type="ambient" color="#404040"></a-light>
-    <a-light type="directional" position="1 2 1" intensity="0.8"></a-light>
-    
-    <!-- Camera Rig -->
-    <a-entity position="0 1.6 0">
+  <a-scene>
+    <!-- Camera rig with teleportation -->
+    <a-entity id="camera-rig" position="0 0 0">
       <a-camera>
-        <a-cursor color="#e94560"></a-cursor>
+        <a-cursor
+          color="#4CC3D9"
+          raycaster="objects: .teleport-button"
+        ></a-cursor>
       </a-camera>
     </a-entity>
+
+    <!-- Sky (will change color per room) -->
+    <a-sky id="sky" color="#87CEEB"></a-sky>
+
+    <!-- ROOM 1: Blue Room (starting room) -->
+    <a-entity id="room1" visible="true">
+      <!-- Floor -->
+      <a-plane position="0 0 0" rotation="-90 0 0" width="10" height="10" color="#4682B4"></a-plane>
+      
+      <!-- Walls -->
+      <a-box position="0 2 -5" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
+      <a-box position="5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
+      <a-box position="-5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
+      <a-box position="0 2 5" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
+      
+      <!-- Decorative objects -->
+      <a-sphere position="-2 1.5 -3" radius="0.5" color="#FFD700"></a-sphere>
+      <a-box position="2 1 -3" width="1" height="2" depth="1" color="#FF6347"></a-box>
+      
+      <!-- Room label -->
+      <a-text value="BLUE ROOM" position="0 3 -4.8" align="center" color="#FFFFFF" width="8"></a-text>
+    </a-entity>
+
+    <!-- ROOM 2: Green Room -->
+    <a-entity id="room2" visible="false">
+      <!-- Floor -->
+      <a-plane position="0 0 0" rotation="-90 0 0" width="10" height="10" color="#228B22"></a-plane>
+      
+      <!-- Walls -->
+      <a-box position="0 2 -5" width="10" height="4" depth="0.2" color="#32CD32"></a-box>
+      <a-box position="5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#32CD32"></a-box>
+      <a-box position="-5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#32CD32"></a-box>
+      <a-box position="0 2 5" width="10" height="4" depth="0.2" color="#32CD32"></a-box>
+      
+      <!-- Decorative objects -->
+      <a-cylinder position="-2 1 -3" radius="0.5" height="2" color="#FFD700"></a-cylinder>
+      <a-torus position="2 1.5 -3" radius="0.7" radius-tubular="0.1" color="#FF1493"></a-torus>
+      
+      <!-- Room label -->
+      <a-text value="GREEN ROOM" position="0 3 -4.8" align="center" color="#FFFFFF" width="8"></a-text>
+    </a-entity>
+
+    <!-- ROOM 3: Red Room -->
+    <a-entity id="room3" visible="false">
+      <!-- Floor -->
+      <a-plane position="0 0 0" rotation="-90 0 0" width="10" height="10" color="#8B0000"></a-plane>
+      
+      <!-- Walls -->
+      <a-box position="0 2 -5" width="10" height="4" depth="0.2" color="#DC143C"></a-box>
+      <a-box position="5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#DC143C"></a-box>
+      <a-box position="-5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#DC143C"></a-box>
+      <a-box position="0 2 5" width="10" height="4" depth="0.2" color="#DC143C"></a-box>
+      
+      <!-- Decorative objects -->
+      <a-dodecahedron position="-2 1.5 -3" radius="0.7" color="#FFD700"></a-dodecahedron>
+      <a-octahedron position="2 1.5 -3" radius="0.7" color="#00CED1"></a-octahedron>
+      
+      <!-- Room label -->
+      <a-text value="RED ROOM" position="0 3 -4.8" align="center" color="#FFFFFF" width="8"></a-text>
+    </a-entity>
+
+    <!-- Teleportation Menu Panel -->
+    <a-entity id="menu-panel" position="3 1.5 -2">
+      <!-- Panel background -->
+      <a-box width="2" height="2.5" depth="0.1" color="#2C3E50" opacity="0.9"></a-box>
+      
+      <!-- Menu title -->
+      <a-text value="TELEPORT" position="0 1 0.06" align="center" color="#FFFFFF" width="3"></a-text>
+      
+      <!-- Button 1: Blue Room -->
+      <a-box 
+        class="teleport-button"
+        data-room="room1"
+        position="0 0.5 0.06"
+        width="1.6"
+        height="0.5"
+        depth="0.05"
+        color="#4682B4"
+      ></a-box>
+      <a-text value="Blue Room" position="0 0.5 0.12" align="center" color="#FFFFFF" width="3"></a-text>
+      
+      <!-- Button 2: Green Room -->
+      <a-box 
+        class="teleport-button"
+        data-room="room2"
+        position="0 -0.2 0.06"
+        width="1.6"
+        height="0.5"
+        depth="0.05"
+        color="#228B22"
+      ></a-box>
+      <a-text value="Green Room" position="0 -0.2 0.12" align="center" color="#FFFFFF" width="3"></a-text>
+      
+      <!-- Button 3: Red Room -->
+      <a-box 
+        class="teleport-button"
+        data-room="room3"
+        position="0 -0.9 0.06"
+        width="1.6"
+        height="0.5"
+        depth="0.05"
+        color="#8B0000"
+      ></a-box>
+      <a-text value="Red Room" position="0 -0.9 0.12" align="center" color="#FFFFFF" width="3"></a-text>
+    </a-entity>
+
+    <!-- Lighting -->
+    <a-light type="ambient" color="#BBB"></a-light>
+    <a-light type="directional" color="#FFF" intensity="0.6" position="-0.5 1 1"></a-light>
   </a-scene>
+
+  <script>
+    // Teleportation system
+    AFRAME.registerComponent('room-teleporter', {
+      init: function() {
+        const buttons = document.querySelectorAll('.teleport-button');
+        const sky = document.querySelector('#sky');
+        
+        const roomColors = {
+          room1: '#87CEEB',  // Sky blue
+          room2: '#90EE90',  // Light green
+          room3: '#FFB6C1'   // Light pink/red
+        };
+        
+        buttons.forEach(button => {
+          button.addEventListener('click', () => {
+            const targetRoom = button.getAttribute('data-room');
+            
+            // Hide all rooms
+            document.getElementById('room1').setAttribute('visible', false);
+            document.getElementById('room2').setAttribute('visible', false);
+            document.getElementById('room3').setAttribute('visible', false);
+            
+            // Show target room
+            document.getElementById(targetRoom).setAttribute('visible', true);
+            
+            // Change sky color
+            sky.setAttribute('color', roomColors[targetRoom]);
+            
+            // Visual feedback - button pulse
+            button.setAttribute('scale', '1.1 1.1 1.1');
+            setTimeout(() => {
+              button.setAttribute('scale', '1 1 1');
+            }, 200);
+          });
+          
+          // Hover effect
+          button.addEventListener('mouseenter', () => {
+            button.setAttribute('opacity', '0.7');
+          });
+          
+          button.addEventListener('mouseleave', () => {
+            button.setAttribute('opacity', '1');
+          });
+        });
+      }
+    });
+    
+    // Attach the component to the scene
+    document.querySelector('a-scene').setAttribute('room-teleporter', '');
+  </script>
 </body>
 </html>
