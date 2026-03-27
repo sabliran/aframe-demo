@@ -100,7 +100,7 @@
       <a-box position="5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
       <a-box position="-5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
       <a-box position="0 2 5" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
-      <a-text value="BLUeE ROOM" position="0 3 -4.8" align="center" color="#FFFFFF" width="8"></a-text>
+      <a-text value="BLUE ROOM" position="0 3 -4.8" align="center" color="#FFFFFF" width="8"></a-text>
       <a-entity id="room1-models"></a-entity>
     </a-entity>
 
@@ -189,20 +189,17 @@
         const dt = delta / 1000;
         const speed = this.data.speed;
 
-        // Get camera yaw (Y rotation) to move relative to where you're looking
-        const cameraObj = this.camera.object3D;
-        const yaw = Math.atan2(
-          -cameraObj.matrixWorld.elements[8],
-          cameraObj.matrixWorld.elements[10]
-        );
+        // Get controller's pointing direction, flattened to XZ plane
+        const controllerObj = this.el.object3D;
+        this.forward.set(0, 0, -1).applyQuaternion(controllerObj.getWorldQuaternion(new THREE.Quaternion()));
+        this.forward.y = 0;
+        this.forward.normalize();
 
-        // Forward vector (camera look direction flattened to XZ)
-        this.forward.set(Math.sin(yaw), 0, Math.cos(yaw));
-        // Right vector
-        this.right.set(Math.cos(yaw), 0, -Math.sin(yaw));
+        this.right.set(1, 0, 0).applyQuaternion(controllerObj.getWorldQuaternion(new THREE.Quaternion()));
+        this.right.y = 0;
+        this.right.normalize();
 
-        // axisY is forward/backward (negative = forward on most controllers)
-        // axisX is strafe left/right
+        // Push stick forward = move where controller points
         this.direction
           .set(0, 0, 0)
           .addScaledVector(this.forward, -this.axisY * speed * dt)
