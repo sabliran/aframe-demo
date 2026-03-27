@@ -66,7 +66,7 @@
     <button onclick="openEditor()">Open Editor</button>
     <div class="instructions">
       <strong>Desktop:</strong> Click teleport menu<br>
-      <strong>VR:</strong> Left joystick to walk/strafe<br>
+      <strong>VR:</strong> Point left controller, pull trigger to teleport<br>
       <strong>VR:</strong> Point right controller at buttons
     </div>
   </div>
@@ -79,9 +79,12 @@
         <a-cursor color="#4CC3D9" raycaster="objects: .teleport-button"></a-cursor>
       </a-camera>
 
-      <!-- Left Controller - Locomotion -->
+      <!-- Left Controller - Point Teleport -->
       <a-entity id="left-controller" oculus-touch-controls="hand: left" vive-controls="hand: left"
-        windows-motion-controls="hand: left" joystick-move></a-entity>
+        windows-motion-controls="hand: left" point-teleport>
+        <a-ring id="teleport-marker" radius-inner="0.15" radius-outer="0.25" color="#4CC3D9"
+          rotation="-90 0 0" visible="false" material="side: double"></a-ring>
+      </a-entity>
 
       <!-- Right Controller - UI Interaction -->
       <a-entity id="right-controller" oculus-touch-controls="hand: right" vive-controls="hand: right"
@@ -153,59 +156,69 @@
     let editorWindow = null;
     let modelCounter = 0;
 
-    // Smooth joystick locomotion (FrameVR-style)
-    AFRAME.registerComponent('joystick-move', {
-      schema: {
-        speed: { default: 3.5 }
-      },
-
+    // Point-and-teleport component
+    AFRAME.registerComponent('point-teleport', {
       init: function () {
         this.cameraRig = document.getElementById('camera-rig');
-        this.camera = document.getElementById('camera');
-        this.axisX = 0;
-        this.axisY = 0;
-        this.direction = new THREE.Vector3();
-        this.forward = new THREE.Vector3();
-        this.right = new THREE.Vector3();
+        this.marker = document.getElementById('teleport-marker');
+        this.raycaster = new THREE.Raycaster();
+        this.hitPoint = new THREE.Vector3();
+        this.hasHit = false;
 
-        this.el.addEventListener('thumbstickmoved', (evt) => {
-          this.axisX = evt.detail.x;
-          this.axisY = evt.detail.y;
+        // Collect all floor meshes for raycasting
+        this.floorMeshes = [];
+        const scene = document.querySelector('a-scene');
+        scene.addEventListener('loaded', () => this.collectFloors());
+        // Re-collect when rooms become visible
+        scene.addEventListener('child-attached', () => this.collectFloors());
+
+        this.el.addEventListener('triggerdown', () => {
+          if (this.hasHit) {
+            this.cameraRig.object3D.position.set(this.hitPoint.x, 0, this.hitPoint.z);
+          }
         });
 
-        // Fallback for controllers that emit axismove
-        this.el.addEventListener('axismove', (evt) => {
-          if (evt.detail.axis.length >= 2) {
-            this.axisX = evt.detail.axis[0];
-            this.axisY = evt.detail.axis[1];
+        // Also support thumbstick click (Quest B/A button equivalent)
+        this.el.addEventListener('thumbstickdown', () => {
+          if (this.hasHit) {
+            this.cameraRig.object3D.position.set(this.hitPoint.x, 0, this.hitPoint.z);
           }
         });
       },
 
-      tick: function (time, delta) {
-        const DEADZONE = 0.15;
-        if (Math.abs(this.axisX) < DEADZONE && Math.abs(this.axisY) < DEADZONE) return;
+      collectFloors: function () {
+        this.floorMeshes = [];
+        document.querySelectorAll('.floor').forEach(el => {
+          const mesh = el.getObject3D('mesh');
+          if (mesh) this.floorMeshes.push(mesh);
+        });
+      },
 
-        const dt = delta / 1000;
-        const speed = this.data.speed;
+      tick: function () {
+        if (!this.floorMeshes.length) this.collectFloors();
 
-        // Get controller's pointing direction, flattened to XZ plane
         const controllerObj = this.el.object3D;
-        this.forward.set(0, 0, -1).applyQuaternion(controllerObj.getWorldQuaternion(new THREE.Quaternion()));
-        this.forward.y = 0;
-        this.forward.normalize();
+        const origin = new THREE.Vector3();
+        const direction = new THREE.Vector3(0, 0, -1);
+        const quat = new THREE.Quaternion();
 
-        this.right.set(1, 0, 0).applyQuaternion(controllerObj.getWorldQuaternion(new THREE.Quaternion()));
-        this.right.y = 0;
-        this.right.normalize();
+        controllerObj.getWorldPosition(origin);
+        controllerObj.getWorldQuaternion(quat);
+        direction.applyQuaternion(quat).normalize();
 
-        // Push stick forward = move where controller points
-        this.direction
-          .set(0, 0, 0)
-          .addScaledVector(this.forward, -this.axisY * speed * dt)
-          .addScaledVector(this.right, this.axisX * speed * dt);
+        this.raycaster.set(origin, direction);
+        const hits = this.raycaster.intersectObjects(this.floorMeshes, true);
 
-        this.cameraRig.object3D.position.add(this.direction);
+        if (hits.length > 0) {
+          this.hitPoint.copy(hits[0].point);
+          this.hasHit = true;
+          this.marker.object3D.position.copy(this.hitPoint);
+          this.marker.object3D.position.y += 0.01; // just above floor
+          this.marker.setAttribute('visible', true);
+        } else {
+          this.hasHit = false;
+          this.marker.setAttribute('visible', false);
+        }
       }
     });
 
