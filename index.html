@@ -6,9 +6,6 @@
   <title>VR Room Teleporter</title>
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
-  <!-- Teleport controls component -->
-  <script
-    src="https://cdn.jsdelivr.net/gh/fernandojsg/aframe-teleport-controls@0.3.1/dist/aframe-teleport-controls.min.js"></script>
   <style>
     body {
       margin: 0;
@@ -84,21 +81,19 @@
 
       <!-- Left Controller - Teleportation -->
       <a-entity id="left-controller" oculus-touch-controls="hand: left" vive-controls="hand: left"
-        windows-motion-controls="hand: left" teleport-controls="
-          type: parabolic;
-          button: thumbstick;
-          curveShootingSpeed: 10;
-          collisionEntities: .floor;
-          cameraRig: #camera-rig;
-          teleportOrigin: #camera;
-          landingMaxAngle: 60;
-          landingNormal: 0 1 0;
-        "></a-entity>
+        windows-motion-controls="hand: left" joystick-teleport>
+        <!-- Teleport arc line -->
+        <a-entity id="teleport-arc"></a-entity>
+        <!-- Landing marker -->
+        <a-ring id="teleport-marker" radius-inner="0.2" radius-outer="0.3" color="#4CC3D9" rotation="-90 0 0"
+          visible="false"></a-ring>
+      </a-entity>
 
       <!-- Right Controller - UI Interaction -->
       <a-entity id="right-controller" oculus-touch-controls="hand: right" vive-controls="hand: right"
         windows-motion-controls="hand: right" laser-controls
-        raycaster="objects: .teleport-button; far: 5; showLine: true" line="color: #4CC3D9; opacity: 0.75"></a-entity>
+        raycaster="objects: .teleport-button, .clickable; far: 5; showLine: true"
+        line="color: #4CC3D9; opacity: 0.75"></a-entity>
     </a-entity>
 
     <!-- Sky -->
@@ -163,6 +158,153 @@
   <script>
     let editorWindow = null;
     let modelCounter = 0;
+
+    // Custom Joystick Teleportation Component
+    AFRAME.registerComponent('joystick-teleport', {
+      init: function () {
+        this.cameraRig = document.getElementById('camera-rig');
+        this.marker = document.getElementById('teleport-marker');
+        this.arc = document.getElementById('teleport-arc');
+        this.isTeleporting = false;
+        this.teleportPosition = new THREE.Vector3();
+        this.arcPoints = [];
+
+        // Create arc curve mesh
+        this.createArcMesh();
+
+        // Listen for thumbstick/joystick events
+        this.el.addEventListener('thumbstickmoved', this.onThumbstickMoved.bind(this));
+        this.el.addEventListener('axismove', this.onAxisMove.bind(this));
+      },
+
+      createArcMesh: function () {
+        // Create a line to show the teleport arc
+        const material = new THREE.LineBasicMaterial({
+          color: 0x4CC3D9,
+          linewidth: 3,
+          opacity: 0.8,
+          transparent: true
+        });
+
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(60 * 3); // 60 points for smooth curve
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+        this.arcLine = new THREE.Line(geometry, material);
+        this.arcLine.visible = false;
+        this.arc.setObject3D('mesh', this.arcLine);
+      },
+
+      onThumbstickMoved: function (evt) {
+        const joystickY = evt.detail.y;
+
+        if (Math.abs(joystickY) > 0.3) { // Deadzone
+          this.showTeleportArc(joystickY);
+          this.isTeleporting = true;
+        } else {
+          if (this.isTeleporting) {
+            this.teleport();
+          }
+          this.hideTeleportArc();
+        }
+      },
+
+      onAxisMove: function (evt) {
+        // Fallback for different controller types
+        if (evt.detail.axis[1] !== undefined) {
+          const joystickY = evt.detail.axis[1];
+
+          if (Math.abs(joystickY) > 0.3) {
+            this.showTeleportArc(joystickY);
+            this.isTeleporting = true;
+          } else {
+            if (this.isTeleporting) {
+              this.teleport();
+            }
+            this.hideTeleportArc();
+          }
+        }
+      },
+
+      showTeleportArc: function (intensity) {
+        const controllerPos = this.el.object3D.getWorldPosition(new THREE.Vector3());
+        const controllerRot = this.el.object3D.getWorldQuaternion(new THREE.Quaternion());
+
+        // Calculate arc based on intensity
+        const distance = Math.abs(intensity) * 5; // Max 5 units distance
+        const height = 2; // Arc height
+
+        // Direction from controller
+        const direction = new THREE.Vector3(0, 0, -1);
+        direction.applyQuaternion(controllerRot);
+        direction.y = 0; // Keep horizontal
+        direction.normalize();
+
+        // Calculate arc points
+        const points = [];
+        const segments = 20;
+
+        for (let i = 0; i <= segments; i++) {
+          const t = i / segments;
+          const point = new THREE.Vector3();
+
+          // Parabolic arc formula
+          point.x = controllerPos.x + direction.x * distance * t;
+          point.z = controllerPos.z + direction.z * distance * t;
+          point.y = controllerPos.y + height * Math.sin(t * Math.PI) - (9.8 * 0.5 * t * t * 0.3);
+
+          points.push(point);
+
+          // Check if we hit the ground
+          if (point.y <= 0.01) {
+            this.teleportPosition.copy(point);
+            this.teleportPosition.y = 0;
+            break;
+          }
+        }
+
+        // Update arc line
+        const positions = this.arcLine.geometry.attributes.position.array;
+        for (let i = 0; i < points.length; i++) {
+          positions[i * 3] = points[i].x;
+          positions[i * 3 + 1] = points[i].y;
+          positions[i * 3 + 2] = points[i].z;
+        }
+
+        // Fill remaining with last point
+        for (let i = points.length; i < 60; i++) {
+          const lastPoint = points[points.length - 1];
+          positions[i * 3] = lastPoint.x;
+          positions[i * 3 + 1] = lastPoint.y;
+          positions[i * 3 + 2] = lastPoint.z;
+        }
+
+        this.arcLine.geometry.attributes.position.needsUpdate = true;
+        this.arcLine.visible = true;
+
+        // Show marker at landing position
+        this.marker.setAttribute('position', this.teleportPosition);
+        this.marker.setAttribute('visible', true);
+      },
+
+      hideTeleportArc: function () {
+        this.arcLine.visible = false;
+        this.marker.setAttribute('visible', false);
+        this.isTeleporting = false;
+      },
+
+      teleport: function () {
+        if (this.teleportPosition) {
+          // Move camera rig to teleport position
+          const currentPos = this.cameraRig.object3D.position;
+          this.cameraRig.object3D.position.set(
+            this.teleportPosition.x,
+            currentPos.y,
+            this.teleportPosition.z
+          );
+        }
+      }
+    });
 
     // Open editor in a new window
     function openEditor() {
