@@ -1,130 +1,125 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="utf-8">
   <title>VR Room Teleporter</title>
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
   <style>
     body {
       margin: 0;
       overflow: hidden;
     }
+
+    #info-panel {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(44, 62, 80, 0.9);
+      padding: 15px;
+      border-radius: 8px;
+      color: white;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      z-index: 1000;
+    }
+
+    #info-panel h3 {
+      margin: 0 0 10px 0;
+      color: #4CC3D9;
+    }
+
+    #info-panel button {
+      background: #4CC3D9;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    #info-panel button:hover {
+      background: #3AB0C7;
+    }
   </style>
 </head>
+
 <body>
-  <a-scene>
-    <!-- Camera rig with teleportation -->
+  <div id="info-panel">
+    <h3>VR Scene Viewer</h3>
+    <p>Open the editor to add 3D models</p>
+    <button onclick="openEditor()">Open Editor</button>
+  </div>
+
+  <a-scene hand-tracking-extras>
+    <!-- Camera rig with VR controllers -->
     <a-entity id="camera-rig" position="0 0 0">
-      <a-camera>
-        <a-cursor
-          color="#4CC3D9"
-          raycaster="objects: .teleport-button"
-        ></a-cursor>
-      </a-camera>
+      <a-camera id="camera"></a-camera>
+
+      <!-- Left Hand/Controller -->
+      <a-entity id="left-hand" hand-controls="hand: left; handModelStyle: highPoly; color: #ffccaa"
+        oculus-touch-controls="hand: left" vive-controls="hand: left" simple-teleport="hand: left"></a-entity>
+
+      <!-- Right Hand/Controller -->
+      <a-entity id="right-hand" hand-controls="hand: right; handModelStyle: highPoly; color: #ffccaa"
+        oculus-touch-controls="hand: right" vive-controls="hand: right" simple-teleport="hand: right" laser-controls
+        raycaster="objects: .teleport-button; far: 3"></a-entity>
     </a-entity>
 
-    <!-- Sky (will change color per room) -->
+    <!-- Sky -->
     <a-sky id="sky" color="#87CEEB"></a-sky>
 
-    <!-- ROOM 1: Blue Room (starting room) -->
+    <!-- ROOM 1: Blue Room -->
     <a-entity id="room1" visible="true">
-      <!-- Floor -->
-      <a-plane position="0 0 0" rotation="-90 0 0" width="10" height="10" color="#4682B4"></a-plane>
-      
-      <!-- Walls -->
+      <a-plane class="floor" position="0 0 0" rotation="-90 0 0" width="10" height="10" color="#4682B4"></a-plane>
       <a-box position="0 2 -5" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
       <a-box position="5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
       <a-box position="-5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
       <a-box position="0 2 5" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
-      
-      <!-- Decorative objects -->
-      <a-sphere position="-2 1.5 -3" radius="0.5" color="#FFD700"></a-sphere>
-      <a-box position="2 1 -3" width="1" height="2" depth="1" color="#FF6347"></a-box>
-      
-      <!-- Room label -->
       <a-text value="BLUE ROOM" position="0 3 -4.8" align="center" color="#FFFFFF" width="8"></a-text>
+      <a-entity id="room1-models"></a-entity>
     </a-entity>
 
     <!-- ROOM 2: Green Room -->
     <a-entity id="room2" visible="false">
-      <!-- Floor -->
-      <a-plane position="0 0 0" rotation="-90 0 0" width="10" height="10" color="#228B22"></a-plane>
-      
-      <!-- Walls -->
+      <a-plane class="floor" position="0 0 0" rotation="-90 0 0" width="10" height="10" color="#228B22"></a-plane>
       <a-box position="0 2 -5" width="10" height="4" depth="0.2" color="#32CD32"></a-box>
       <a-box position="5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#32CD32"></a-box>
       <a-box position="-5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#32CD32"></a-box>
       <a-box position="0 2 5" width="10" height="4" depth="0.2" color="#32CD32"></a-box>
-      
-      <!-- Decorative objects -->
-      <a-cylinder position="-2 1 -3" radius="0.5" height="2" color="#FFD700"></a-cylinder>
-      <a-torus position="2 1.5 -3" radius="0.7" radius-tubular="0.1" color="#FF1493"></a-torus>
-      
-      <!-- Room label -->
       <a-text value="GREEN ROOM" position="0 3 -4.8" align="center" color="#FFFFFF" width="8"></a-text>
+      <a-entity id="room2-models"></a-entity>
     </a-entity>
 
     <!-- ROOM 3: Red Room -->
     <a-entity id="room3" visible="false">
-      <!-- Floor -->
-      <a-plane position="0 0 0" rotation="-90 0 0" width="10" height="10" color="#8B0000"></a-plane>
-      
-      <!-- Walls -->
+      <a-plane class="floor" position="0 0 0" rotation="-90 0 0" width="10" height="10" color="#8B0000"></a-plane>
       <a-box position="0 2 -5" width="10" height="4" depth="0.2" color="#DC143C"></a-box>
       <a-box position="5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#DC143C"></a-box>
       <a-box position="-5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#DC143C"></a-box>
       <a-box position="0 2 5" width="10" height="4" depth="0.2" color="#DC143C"></a-box>
-      
-      <!-- Decorative objects -->
-      <a-dodecahedron position="-2 1.5 -3" radius="0.7" color="#FFD700"></a-dodecahedron>
-      <a-octahedron position="2 1.5 -3" radius="0.7" color="#00CED1"></a-octahedron>
-      
-      <!-- Room label -->
       <a-text value="RED ROOM" position="0 3 -4.8" align="center" color="#FFFFFF" width="8"></a-text>
+      <a-entity id="room3-models"></a-entity>
     </a-entity>
 
-    <!-- Teleportation Menu Panel -->
+    <!-- Teleportation Menu -->
     <a-entity id="menu-panel" position="3 1.5 -2">
-      <!-- Panel background -->
       <a-box width="2" height="2.5" depth="0.1" color="#2C3E50" opacity="0.9"></a-box>
-      
-      <!-- Menu title -->
       <a-text value="TELEPORT" position="0 1 0.06" align="center" color="#FFFFFF" width="3"></a-text>
-      
-      <!-- Button 1: Blue Room -->
-      <a-box 
-        class="teleport-button"
-        data-room="room1"
-        position="0 0.5 0.06"
-        width="1.6"
-        height="0.5"
-        depth="0.05"
-        color="#4682B4"
-      ></a-box>
+
+      <a-box class="teleport-button" data-room="room1" position="0 0.5 0.06" width="1.6" height="0.5" depth="0.05"
+        color="#4682B4"></a-box>
       <a-text value="Blue Room" position="0 0.5 0.12" align="center" color="#FFFFFF" width="3"></a-text>
-      
-      <!-- Button 2: Green Room -->
-      <a-box 
-        class="teleport-button"
-        data-room="room2"
-        position="0 -0.2 0.06"
-        width="1.6"
-        height="0.5"
-        depth="0.05"
-        color="#228B22"
-      ></a-box>
+
+      <a-box class="teleport-button" data-room="room2" position="0 -0.2 0.06" width="1.6" height="0.5" depth="0.05"
+        color="#228B22"></a-box>
       <a-text value="Green Room" position="0 -0.2 0.12" align="center" color="#FFFFFF" width="3"></a-text>
-      
-      <!-- Button 3: Red Room -->
-      <a-box 
-        class="teleport-button"
-        data-room="room3"
-        position="0 -0.9 0.06"
-        width="1.6"
-        height="0.5"
-        depth="0.05"
-        color="#8B0000"
-      ></a-box>
+
+      <a-box class="teleport-button" data-room="room3" position="0 -0.9 0.06" width="1.6" height="0.5" depth="0.05"
+        color="#8B0000"></a-box>
       <a-text value="Red Room" position="0 -0.9 0.12" align="center" color="#FFFFFF" width="3"></a-text>
     </a-entity>
 
@@ -134,54 +129,311 @@
   </a-scene>
 
   <script>
+    let editorWindow = null;
+    let modelCounter = 0;
+
+    // Open editor in a new window
+    function openEditor() {
+      if (editorWindow && !editorWindow.closed) {
+        editorWindow.focus();
+      } else {
+        editorWindow = window.open('editor.html', 'VR_Editor', 'width=450,height=800');
+      }
+    }
+
+    // Receive messages from editor
+    window.addEventListener('message', (event) => {
+      if (event.data.type === 'ADD_MODEL') {
+        const { modelData, room, position, scale, rotationY, color } = event.data;
+        addModelToScene(modelData, room, position, scale, rotationY, color);
+      } else if (event.data.type === 'REMOVE_MODEL') {
+        removeModel(event.data.modelId);
+      } else if (event.data.type === 'CLEAR_ALL') {
+        clearAllModels();
+      }
+    });
+
+    // Add model to scene
+    function addModelToScene(modelData, room, position, scale, rotationY, color) {
+      const modelId = `model-${modelCounter++}`;
+      const roomContainer = document.getElementById(`${room}-models`);
+      const { fileData, fileName, fileType } = modelData;
+
+      let modelEntity;
+
+      if (fileType === 'stl') {
+        const loader = new THREE.STLLoader();
+        const geometry = loader.parse(fileData);
+
+        modelEntity = document.createElement('a-entity');
+        modelEntity.setAttribute('id', modelId);
+        modelEntity.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
+        modelEntity.setAttribute('rotation', `0 ${rotationY} 0`);
+        modelEntity.setAttribute('scale', `${scale} ${scale} ${scale}`);
+        modelEntity.setAttribute('geometry', { primitive: 'box', width: 1, height: 1, depth: 1 });
+        modelEntity.setAttribute('material', `color: ${color}`);
+
+        modelEntity.addEventListener('loaded', () => {
+          const mesh = modelEntity.getObject3D('mesh');
+          if (mesh) {
+            mesh.geometry = geometry;
+            mesh.geometry.computeBoundingSphere();
+            mesh.material.color.set(color);
+          }
+        });
+
+      } else if (fileType === 'obj') {
+        const blob = new Blob([fileData], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+
+        modelEntity = document.createElement('a-entity');
+        modelEntity.setAttribute('id', modelId);
+        modelEntity.setAttribute('obj-model', `obj: url(${url})`);
+        modelEntity.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
+        modelEntity.setAttribute('rotation', `0 ${rotationY} 0`);
+        modelEntity.setAttribute('scale', `${scale} ${scale} ${scale}`);
+        modelEntity.setAttribute('material', `color: ${color}`);
+
+      } else if (fileType === 'gltf' || fileType === 'glb') {
+        const blob = new Blob([fileData], {
+          type: fileType === 'glb' ? 'model/gltf-binary' : 'model/gltf+json'
+        });
+        const url = URL.createObjectURL(blob);
+
+        modelEntity = document.createElement('a-entity');
+        modelEntity.setAttribute('id', modelId);
+        modelEntity.setAttribute('gltf-model', `url(${url})`);
+        modelEntity.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
+        modelEntity.setAttribute('rotation', `0 ${rotationY} 0`);
+        modelEntity.setAttribute('scale', `${scale} ${scale} ${scale}`);
+      }
+
+      if (modelEntity) {
+        roomContainer.appendChild(modelEntity);
+
+        // Notify editor
+        if (editorWindow && !editorWindow.closed) {
+          editorWindow.postMessage({
+            type: 'MODEL_ADDED',
+            modelId: modelId,
+            fileName: fileName
+          }, '*');
+        }
+      }
+    }
+
+    // Remove model
+    function removeModel(modelId) {
+      const modelEntity = document.getElementById(modelId);
+      if (modelEntity) {
+        modelEntity.remove();
+      }
+    }
+
+    // Clear all models
+    function clearAllModels() {
+      ['room1', 'room2', 'room3'].forEach(room => {
+        const container = document.getElementById(`${room}-models`);
+        while (container.firstChild) {
+          container.removeChild(container.firstChild);
+        }
+      });
+    }
+
+    // Hand tracking extras component
+    AFRAME.registerComponent('hand-tracking-extras', {
+      init: function () {
+        this.el.addEventListener('enter-vr', () => {
+          console.log('Entered VR mode');
+        });
+      }
+    });
+
+    // Custom simple teleport component
+    AFRAME.registerComponent('simple-teleport', {
+      schema: {
+        hand: { type: 'string', default: 'right' }
+      },
+
+      init: function () {
+        this.cameraRig = document.querySelector('#camera-rig');
+        this.raycaster = new THREE.Raycaster();
+        this.controller = this.el;
+        this.teleporting = false;
+        this.marker = null;
+
+        // Create teleport marker
+        this.createMarker();
+
+        // Listen for controller events
+        this.el.addEventListener('thumbstickmoved', this.onThumbstick.bind(this));
+        this.el.addEventListener('axismove', this.onAxisMove.bind(this));
+        this.el.addEventListener('triggerdown', this.onTriggerDown.bind(this));
+
+        // Listen for hand tracking pinch gestures
+        this.el.addEventListener('pinchstarted', this.onPinchStart.bind(this));
+        this.el.addEventListener('pinchended', this.onPinchEnd.bind(this));
+      },
+
+      createMarker: function () {
+        this.marker = document.createElement('a-entity');
+        this.marker.setAttribute('geometry', {
+          primitive: 'cylinder',
+          radius: 0.3,
+          height: 0.05
+        });
+        this.marker.setAttribute('material', {
+          color: '#4CC3D9',
+          opacity: 0.7,
+          transparent: true
+        });
+        this.marker.setAttribute('visible', false);
+        this.el.sceneEl.appendChild(this.marker);
+      },
+
+      onPinchStart: function (evt) {
+        // Start showing teleport location when pinching
+        this.teleporting = true;
+        this.showTeleportLocation();
+      },
+
+      onPinchEnd: function (evt) {
+        // Execute teleport when releasing pinch
+        if (this.teleporting) {
+          this.executeTeleport();
+        }
+        this.teleporting = false;
+        this.marker.setAttribute('visible', false);
+      },
+
+      onThumbstick: function (evt) {
+        // Check if thumbstick pushed forward
+        if (evt.detail.y > 0.5) {
+          this.teleporting = true;
+          this.showTeleportLocation();
+        } else {
+          if (this.teleporting) {
+            this.executeTeleport();
+          }
+          this.teleporting = false;
+          this.marker.setAttribute('visible', false);
+        }
+      },
+
+      onAxisMove: function (evt) {
+        // For controllers that use axis instead of thumbstick
+        if (evt.detail.axis && evt.detail.axis[1] > 0.5) {
+          this.teleporting = true;
+          this.showTeleportLocation();
+        } else if (evt.detail.axis) {
+          if (this.teleporting) {
+            this.executeTeleport();
+          }
+          this.teleporting = false;
+          this.marker.setAttribute('visible', false);
+        }
+      },
+
+      onTriggerDown: function () {
+        if (this.teleporting) {
+          this.executeTeleport();
+          this.teleporting = false;
+          this.marker.setAttribute('visible', false);
+        }
+      },
+
+      tick: function () {
+        // Continuously update teleport location while teleporting
+        if (this.teleporting) {
+          this.showTeleportLocation();
+        }
+      },
+
+      showTeleportLocation: function () {
+        // Get controller/hand position and direction
+        const controllerPos = new THREE.Vector3();
+        const controllerDir = new THREE.Vector3();
+
+        this.el.object3D.getWorldPosition(controllerPos);
+        this.el.object3D.getWorldDirection(controllerDir);
+
+        // Set raycaster
+        this.raycaster.set(controllerPos, controllerDir);
+
+        // Check intersection with floors
+        const floors = document.querySelectorAll('.floor');
+        const intersects = this.raycaster.intersectObjects(
+          Array.from(floors).map(f => f.object3D),
+          true
+        );
+
+        if (intersects.length > 0) {
+          const point = intersects[0].point;
+          this.marker.setAttribute('position', {
+            x: point.x,
+            y: point.y + 0.05,
+            z: point.z
+          });
+          this.marker.setAttribute('visible', true);
+        } else {
+          this.marker.setAttribute('visible', false);
+        }
+      },
+
+      executeTeleport: function () {
+        if (this.marker.getAttribute('visible')) {
+          const markerPos = this.marker.getAttribute('position');
+          const currentPos = this.cameraRig.getAttribute('position');
+
+          this.cameraRig.setAttribute('position', {
+            x: markerPos.x,
+            y: currentPos.y, // Keep same height
+            z: markerPos.z
+          });
+        }
+      }
+    });
+
     // Teleportation system
     AFRAME.registerComponent('room-teleporter', {
-      init: function() {
+      init: function () {
         const buttons = document.querySelectorAll('.teleport-button');
         const sky = document.querySelector('#sky');
-        
+
         const roomColors = {
-          room1: '#87CEEB',  // Sky blue
-          room2: '#90EE90',  // Light green
-          room3: '#FFB6C1'   // Light pink/red
+          room1: '#87CEEB',
+          room2: '#90EE90',
+          room3: '#FFB6C1'
         };
-        
+
         buttons.forEach(button => {
           button.addEventListener('click', () => {
             const targetRoom = button.getAttribute('data-room');
-            
-            // Hide all rooms
+
             document.getElementById('room1').setAttribute('visible', false);
             document.getElementById('room2').setAttribute('visible', false);
             document.getElementById('room3').setAttribute('visible', false);
-            
-            // Show target room
             document.getElementById(targetRoom).setAttribute('visible', true);
-            
-            // Change sky color
+
             sky.setAttribute('color', roomColors[targetRoom]);
-            
-            // Visual feedback - button pulse
+
             button.setAttribute('scale', '1.1 1.1 1.1');
-            setTimeout(() => {
-              button.setAttribute('scale', '1 1 1');
-            }, 200);
+            setTimeout(() => button.setAttribute('scale', '1 1 1'), 200);
           });
-          
-          // Hover effect
+
           button.addEventListener('mouseenter', () => {
             button.setAttribute('opacity', '0.7');
           });
-          
+
           button.addEventListener('mouseleave', () => {
             button.setAttribute('opacity', '1');
           });
         });
       }
     });
-    
-    // Attach the component to the scene
+
     document.querySelector('a-scene').setAttribute('room-teleporter', '');
   </script>
 </body>
+
 </html>
