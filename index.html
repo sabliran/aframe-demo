@@ -6,6 +6,9 @@
   <title>VR Room Teleporter</title>
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
+  <!-- Teleport controls component -->
+  <script
+    src="https://cdn.jsdelivr.net/gh/fernandojsg/aframe-teleport-controls@0.3.1/dist/aframe-teleport-controls.min.js"></script>
   <style>
     body {
       margin: 0;
@@ -44,6 +47,18 @@
     #info-panel button:hover {
       background: #3AB0C7;
     }
+
+    .instructions {
+      font-size: 12px;
+      margin-top: 10px;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 5px;
+    }
+
+    .instructions strong {
+      color: #4CC3D9;
+    }
   </style>
 </head>
 
@@ -52,21 +67,38 @@
     <h3>VR Scene Viewer</h3>
     <p>Open the editor to add 3D models</p>
     <button onclick="openEditor()">Open Editor</button>
+    <div class="instructions">
+      <strong>Desktop:</strong> Click teleport menu<br>
+      <strong>VR:</strong> Push left joystick to teleport<br>
+      <strong>VR:</strong> Point right controller at buttons
+    </div>
   </div>
 
-  <a-scene hand-tracking-extras>
+  <a-scene>
     <!-- Camera rig with VR controllers -->
     <a-entity id="camera-rig" position="0 0 0">
-      <a-camera id="camera"></a-camera>
+      <a-camera id="camera">
+        <!-- Desktop cursor -->
+        <a-cursor color="#4CC3D9" raycaster="objects: .teleport-button"></a-cursor>
+      </a-camera>
 
-      <!-- Left Hand/Controller -->
-      <a-entity id="left-hand" hand-controls="hand: left; handModelStyle: highPoly; color: #ffccaa"
-        oculus-touch-controls="hand: left" vive-controls="hand: left" simple-teleport="hand: left"></a-entity>
+      <!-- Left Controller - Teleportation -->
+      <a-entity id="left-controller" oculus-touch-controls="hand: left" vive-controls="hand: left"
+        windows-motion-controls="hand: left" teleport-controls="
+          type: parabolic;
+          button: thumbstick;
+          curveShootingSpeed: 10;
+          collisionEntities: .floor;
+          cameraRig: #camera-rig;
+          teleportOrigin: #camera;
+          landingMaxAngle: 60;
+          landingNormal: 0 1 0;
+        "></a-entity>
 
-      <!-- Right Hand/Controller -->
-      <a-entity id="right-hand" hand-controls="hand: right; handModelStyle: highPoly; color: #ffccaa"
-        oculus-touch-controls="hand: right" vive-controls="hand: right" simple-teleport="hand: right" laser-controls
-        raycaster="objects: .teleport-button; far: 3"></a-entity>
+      <!-- Right Controller - UI Interaction -->
+      <a-entity id="right-controller" oculus-touch-controls="hand: right" vive-controls="hand: right"
+        windows-motion-controls="hand: right" laser-controls
+        raycaster="objects: .teleport-button; far: 5; showLine: true" line="color: #4CC3D9; opacity: 0.75"></a-entity>
     </a-entity>
 
     <!-- Sky -->
@@ -105,21 +137,21 @@
       <a-entity id="room3-models"></a-entity>
     </a-entity>
 
-    <!-- Teleportation Menu -->
+    <!-- Teleportation Menu Panel -->
     <a-entity id="menu-panel" position="3 1.5 -2">
       <a-box width="2" height="2.5" depth="0.1" color="#2C3E50" opacity="0.9"></a-box>
       <a-text value="TELEPORT" position="0 1 0.06" align="center" color="#FFFFFF" width="3"></a-text>
 
-      <a-box class="teleport-button" data-room="room1" position="0 0.5 0.06" width="1.6" height="0.5" depth="0.05"
-        color="#4682B4"></a-box>
+      <a-box class="teleport-button clickable" data-room="room1" position="0 0.5 0.06" width="1.6" height="0.5"
+        depth="0.05" color="#4682B4"></a-box>
       <a-text value="Blue Room" position="0 0.5 0.12" align="center" color="#FFFFFF" width="3"></a-text>
 
-      <a-box class="teleport-button" data-room="room2" position="0 -0.2 0.06" width="1.6" height="0.5" depth="0.05"
-        color="#228B22"></a-box>
+      <a-box class="teleport-button clickable" data-room="room2" position="0 -0.2 0.06" width="1.6" height="0.5"
+        depth="0.05" color="#228B22"></a-box>
       <a-text value="Green Room" position="0 -0.2 0.12" align="center" color="#FFFFFF" width="3"></a-text>
 
-      <a-box class="teleport-button" data-room="room3" position="0 -0.9 0.06" width="1.6" height="0.5" depth="0.05"
-        color="#8B0000"></a-box>
+      <a-box class="teleport-button clickable" data-room="room3" position="0 -0.9 0.06" width="1.6" height="0.5"
+        depth="0.05" color="#8B0000"></a-box>
       <a-text value="Red Room" position="0 -0.9 0.12" align="center" color="#FFFFFF" width="3"></a-text>
     </a-entity>
 
@@ -240,161 +272,7 @@
       });
     }
 
-    // Hand tracking extras component
-    AFRAME.registerComponent('hand-tracking-extras', {
-      init: function () {
-        this.el.addEventListener('enter-vr', () => {
-          console.log('Entered VR mode');
-        });
-      }
-    });
-
-    // Custom simple teleport component
-    AFRAME.registerComponent('simple-teleport', {
-      schema: {
-        hand: { type: 'string', default: 'right' }
-      },
-
-      init: function () {
-        this.cameraRig = document.querySelector('#camera-rig');
-        this.raycaster = new THREE.Raycaster();
-        this.controller = this.el;
-        this.teleporting = false;
-        this.marker = null;
-
-        // Create teleport marker
-        this.createMarker();
-
-        // Listen for controller events
-        this.el.addEventListener('thumbstickmoved', this.onThumbstick.bind(this));
-        this.el.addEventListener('axismove', this.onAxisMove.bind(this));
-        this.el.addEventListener('triggerdown', this.onTriggerDown.bind(this));
-
-        // Listen for hand tracking pinch gestures
-        this.el.addEventListener('pinchstarted', this.onPinchStart.bind(this));
-        this.el.addEventListener('pinchended', this.onPinchEnd.bind(this));
-      },
-
-      createMarker: function () {
-        this.marker = document.createElement('a-entity');
-        this.marker.setAttribute('geometry', {
-          primitive: 'cylinder',
-          radius: 0.3,
-          height: 0.05
-        });
-        this.marker.setAttribute('material', {
-          color: '#4CC3D9',
-          opacity: 0.7,
-          transparent: true
-        });
-        this.marker.setAttribute('visible', false);
-        this.el.sceneEl.appendChild(this.marker);
-      },
-
-      onPinchStart: function (evt) {
-        // Start showing teleport location when pinching
-        this.teleporting = true;
-        this.showTeleportLocation();
-      },
-
-      onPinchEnd: function (evt) {
-        // Execute teleport when releasing pinch
-        if (this.teleporting) {
-          this.executeTeleport();
-        }
-        this.teleporting = false;
-        this.marker.setAttribute('visible', false);
-      },
-
-      onThumbstick: function (evt) {
-        // Check if thumbstick pushed forward
-        if (evt.detail.y > 0.5) {
-          this.teleporting = true;
-          this.showTeleportLocation();
-        } else {
-          if (this.teleporting) {
-            this.executeTeleport();
-          }
-          this.teleporting = false;
-          this.marker.setAttribute('visible', false);
-        }
-      },
-
-      onAxisMove: function (evt) {
-        // For controllers that use axis instead of thumbstick
-        if (evt.detail.axis && evt.detail.axis[1] > 0.5) {
-          this.teleporting = true;
-          this.showTeleportLocation();
-        } else if (evt.detail.axis) {
-          if (this.teleporting) {
-            this.executeTeleport();
-          }
-          this.teleporting = false;
-          this.marker.setAttribute('visible', false);
-        }
-      },
-
-      onTriggerDown: function () {
-        if (this.teleporting) {
-          this.executeTeleport();
-          this.teleporting = false;
-          this.marker.setAttribute('visible', false);
-        }
-      },
-
-      tick: function () {
-        // Continuously update teleport location while teleporting
-        if (this.teleporting) {
-          this.showTeleportLocation();
-        }
-      },
-
-      showTeleportLocation: function () {
-        // Get controller/hand position and direction
-        const controllerPos = new THREE.Vector3();
-        const controllerDir = new THREE.Vector3();
-
-        this.el.object3D.getWorldPosition(controllerPos);
-        this.el.object3D.getWorldDirection(controllerDir);
-
-        // Set raycaster
-        this.raycaster.set(controllerPos, controllerDir);
-
-        // Check intersection with floors
-        const floors = document.querySelectorAll('.floor');
-        const intersects = this.raycaster.intersectObjects(
-          Array.from(floors).map(f => f.object3D),
-          true
-        );
-
-        if (intersects.length > 0) {
-          const point = intersects[0].point;
-          this.marker.setAttribute('position', {
-            x: point.x,
-            y: point.y + 0.05,
-            z: point.z
-          });
-          this.marker.setAttribute('visible', true);
-        } else {
-          this.marker.setAttribute('visible', false);
-        }
-      },
-
-      executeTeleport: function () {
-        if (this.marker.getAttribute('visible')) {
-          const markerPos = this.marker.getAttribute('position');
-          const currentPos = this.cameraRig.getAttribute('position');
-
-          this.cameraRig.setAttribute('position', {
-            x: markerPos.x,
-            y: currentPos.y, // Keep same height
-            z: markerPos.z
-          });
-        }
-      }
-    });
-
-    // Teleportation system
+    // Room teleportation system
     AFRAME.registerComponent('room-teleporter', {
       init: function () {
         const buttons = document.querySelectorAll('.teleport-button');
