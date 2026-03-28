@@ -822,8 +822,9 @@
           const x = evt.detail.x;
           const y = evt.detail.y;
 
-          // Left / right → snap turn
-          if (Math.abs(x) > this.data.threshold && this.readyX) {
+          // Left / right → snap turn (not while grabbing a wall)
+          const grabbingWall = this.el.components['wall-grabber'] && this.el.components['wall-grabber'].grabbed;
+          if (Math.abs(x) > this.data.threshold && this.readyX && !grabbingWall) {
             this.readyX = false;
             const snap = THREE.MathUtils.degToRad(this.data.angle);
             this.rig.object3D.rotation.y += x > 0 ? -snap : snap;
@@ -855,11 +856,13 @@
         this.ctrlQuat   = new THREE.Quaternion();
         this.invQuat    = new THREE.Quaternion();
         this.joystickY  = 0;
+        this.joystickX  = 0;
 
         this.el.addEventListener('gripdown', () => this.grab());
         this.el.addEventListener('gripup',   () => this.release());
         this.el.addEventListener('thumbstickmoved', (evt) => {
           this.joystickY = evt.detail.y;
+          this.joystickX = evt.detail.x;
         });
       },
 
@@ -905,6 +908,12 @@
           }
         }
 
+        // Joystick X → rotate wall around Y axis
+        if (Math.abs(this.joystickX) > 0.2) {
+          wEl.object3D.rotation.y += this.joystickX * 0.002 * delta;
+          this.grabbed.rotY = THREE.MathUtils.radToDeg(wEl.object3D.rotation.y);
+        }
+
         this.el.object3D.getWorldPosition(this.ctrlPos);
         this.el.object3D.getWorldQuaternion(this.ctrlQuat);
 
@@ -928,6 +937,8 @@
     AFRAME.registerComponent('room-collider', {
       init: function () {
         this._tmp   = new THREE.Vector3();
+        this._wPos  = new THREE.Vector3();
+        this._wQuat = new THREE.Quaternion();
         this._inv   = new THREE.Quaternion();
         this._push  = new THREE.Vector3();
       },
@@ -939,15 +950,18 @@
         if (pos.z >  limit) pos.z =  limit;
         if (pos.z < -limit) pos.z = -limit;
 
-        // Custom wall collision
+        // Custom wall collision using world-space position and quaternion
         const playerR = 0.3;
         walls.forEach(w => {
           const wEl = document.getElementById(w.id);
           if (!wEl) return;
 
-          // Transform player position into wall's local space (XZ only)
-          this._inv.copy(wEl.object3D.quaternion).invert();
-          this._tmp.set(pos.x - w.position.x, 0, pos.z - w.position.z)
+          wEl.object3D.getWorldPosition(this._wPos);
+          wEl.object3D.getWorldQuaternion(this._wQuat);
+          this._inv.copy(this._wQuat).invert();
+
+          // Transform player XZ into wall's local space
+          this._tmp.set(pos.x - this._wPos.x, 0, pos.z - this._wPos.z)
                    .applyQuaternion(this._inv);
 
           const halfW = w.width  / 2 + playerR;
@@ -961,7 +975,7 @@
             else           this._push.x = this._tmp.x > 0 ?  ovX : -ovX;
 
             // Back to world space
-            this._push.applyQuaternion(wEl.object3D.quaternion);
+            this._push.applyQuaternion(this._wQuat);
             pos.x += this._push.x;
             pos.z += this._push.z;
           }
