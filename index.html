@@ -623,28 +623,41 @@
       }
     });
 
-    // ── Snap turn component ───────────────────────────────────────
+    // ── Snap turn + step back component ──────────────────────────
     AFRAME.registerComponent('snap-turn', {
       schema: {
-        angle:     { default: 30 },
+        angle:    { default: 30 },
+        stepDist: { default: 1.5 },
         threshold: { default: 0.7 }
       },
       init: function () {
-        this.rig     = document.getElementById('rig');
-        this.ready   = true; // debounce flag
+        this.rig    = document.getElementById('rig');
+        this.readyX = true;
+        this.readyY = true;
 
         this.el.addEventListener('thumbstickmoved', (evt) => {
           const x = evt.detail.x;
+          const y = evt.detail.y;
 
-          if (Math.abs(x) > this.data.threshold && this.ready) {
-            this.ready = false;
+          // Left / right → snap turn
+          if (Math.abs(x) > this.data.threshold && this.readyX) {
+            this.readyX = false;
             const snap = THREE.MathUtils.degToRad(this.data.angle);
             this.rig.object3D.rotation.y += x > 0 ? -snap : snap;
           }
+          if (Math.abs(x) < 0.2) this.readyX = true;
 
-          if (Math.abs(x) < 0.2) {
-            this.ready = true; // reset when stick returns to centre
+          // Down → step back
+          if (y > this.data.threshold && this.readyY) {
+            this.readyY = false;
+            const ry   = this.rig.object3D.rotation.y;
+            const dist = this.data.stepDist;
+            const nx   = this.rig.object3D.position.x + Math.sin(ry) * dist;
+            const nz   = this.rig.object3D.position.z + Math.cos(ry) * dist;
+            this.rig.object3D.position.x = Math.max(-4.6, Math.min(4.6, nx));
+            this.rig.object3D.position.z = Math.max(-4.6, Math.min(4.6, nz));
           }
+          if (y < 0.2) this.readyY = true;
         });
       }
     });
