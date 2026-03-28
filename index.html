@@ -483,9 +483,10 @@
         vive-controls="hand: left"
         laser-controls="hand: left"
         raycaster="objects: [data-room], .clickable; far: 10; showLine: true"
-        line="color: #4CC3D9; opacity: 0.8"
+        line="color: #4CC3D9; opacity: 0"
         arc-teleporter
-        snap-turn>
+        snap-turn
+        smart-laser>
       </a-entity>
 
       <!-- Right controller — thumbstick up: arc teleport | L/R: snap turn | trigger: click -->
@@ -494,9 +495,10 @@
         vive-controls="hand: right"
         laser-controls="hand: right"
         raycaster="objects: [data-room], .clickable; far: 10; showLine: true"
-        line="color: #4CC3D9; opacity: 0.8"
+        line="color: #4CC3D9; opacity: 0"
         arc-teleporter
-        snap-turn>
+        snap-turn
+        smart-laser>
       </a-entity>
 
     </a-entity>
@@ -620,6 +622,24 @@
       remove: function () {
         this.dots.forEach(d => d.parentNode && d.parentNode.removeChild(d));
         if (this.ring.parentNode) this.ring.parentNode.removeChild(this.ring);
+      }
+    });
+
+    // ── Smart laser — only visible when hitting an object ─────────
+    AFRAME.registerComponent('smart-laser', {
+      init: function () {
+        // Hide line on next frame (line component initialises after this)
+        this.el.sceneEl.addEventListener('loaded', () => {
+          this.el.setAttribute('line', 'opacity', 0);
+        });
+
+        this.el.addEventListener('raycaster-intersection', () => {
+          this.el.setAttribute('line', 'opacity', 0.8);
+        });
+
+        this.el.addEventListener('raycaster-intersection-cleared', () => {
+          this.el.setAttribute('line', 'opacity', 0);
+        });
       }
     });
 
