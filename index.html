@@ -641,11 +641,17 @@
       schema: { angle: { default: 30 } }, // cone half-angle in degrees
 
       init: function () {
-        this.wasNear    = false;
-        this.ctrlPos    = new THREE.Vector3();
-        this.ctrlDir    = new THREE.Vector3();
-        this.ctrlQuat   = new THREE.Quaternion();
-        this.targetPos  = new THREE.Vector3();
+        this.wasNear   = false;
+        this.ctrlPos   = new THREE.Vector3();
+        this.ctrlDir   = new THREE.Vector3();
+        this.ctrlQuat  = new THREE.Quaternion();
+        this.targetPos = new THREE.Vector3();
+        this.tiltDeg   = 20; // degrees downward
+
+        // Wrapper rotated down — beam pivots from controller tip
+        const wrapper = document.createElement('a-entity');
+        wrapper.setAttribute('rotation', `-${this.tiltDeg} 0 0`);
+        this.el.appendChild(wrapper);
 
         const beam = document.createElement('a-box');
         beam.setAttribute('width',    '0.005');
@@ -653,15 +659,20 @@
         beam.setAttribute('depth',    '10');
         beam.setAttribute('position', '0 0 -5');
         beam.setAttribute('material', 'color: #4CC3D9; opacity: 0.8; shader: flat');
-        beam.object3D.visible = false;
-        this.el.appendChild(beam);
-        this.beam = beam;
+        wrapper.appendChild(beam);
+        this.wrapper = wrapper;
       },
 
       tick: function () {
         this.el.object3D.getWorldPosition(this.ctrlPos);
         this.el.object3D.getWorldQuaternion(this.ctrlQuat);
-        this.ctrlDir.set(0, 0, -1).applyQuaternion(this.ctrlQuat).normalize();
+
+        // Forward direction tilted down by tiltDeg in local space
+        const rad = THREE.MathUtils.degToRad(this.tiltDeg);
+        this.ctrlDir
+          .set(0, -Math.sin(rad), -Math.cos(rad))
+          .applyQuaternion(this.ctrlQuat)
+          .normalize();
 
         const targets = document.querySelectorAll('[data-room], .clickable');
         const cosThreshold = Math.cos(THREE.MathUtils.degToRad(this.data.angle));
@@ -677,7 +688,7 @@
 
         if (near !== this.wasNear) {
           this.wasNear = near;
-          this.beam.object3D.visible = near;
+          this.wrapper.object3D.visible = near;
         }
       }
     });
