@@ -482,8 +482,7 @@
       <a-entity id="left-controller"
         oculus-touch-controls="hand: left"
         vive-controls="hand: left"
-        raycaster="objects: [data-room], .clickable; far: 10; showLine: true"
-        line="color: #4CC3D9; opacity: 0.8"
+        raycaster="objects: [data-room], .clickable; far: 10; showLine: false"
         arc-teleporter
         snap-turn
         vr-pointer
@@ -494,8 +493,7 @@
       <a-entity id="right-controller"
         oculus-touch-controls="hand: right"
         vive-controls="hand: right"
-        raycaster="objects: [data-room], .clickable; far: 10; showLine: true"
-        line="color: #4CC3D9; opacity: 0.8"
+        raycaster="objects: [data-room], .clickable; far: 10; showLine: false"
         arc-teleporter
         snap-turn
         vr-pointer
@@ -642,15 +640,26 @@
     AFRAME.registerComponent('smart-laser', {
       init: function () {
         this.wasHitting = false;
+
+        // Own laser beam — thin box parented to controller
+        const beam = document.createElement('a-box');
+        beam.setAttribute('width',    '0.005');
+        beam.setAttribute('height',   '0.005');
+        beam.setAttribute('depth',    '10');
+        beam.setAttribute('position', '0 0 -5');
+        beam.setAttribute('material', 'color: #4CC3D9; opacity: 0.8; shader: flat');
+        beam.object3D.visible = false;
+        this.el.appendChild(beam);
+        this.beam = beam;
       },
+
       tick: function () {
         const rc = this.el.components.raycaster;
         if (!rc) return;
         const hitting = rc.intersectedEls.length > 0;
         if (hitting === this.wasHitting) return;
         this.wasHitting = hitting;
-        const lineObj = this.el.getObject3D('line');
-        if (lineObj) lineObj.visible = hitting;
+        this.beam.object3D.visible = hitting;
       }
     });
 
