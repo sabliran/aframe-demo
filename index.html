@@ -654,6 +654,8 @@
         scene.appendChild(this.ring);
 
         this.el.addEventListener('thumbstickmoved', (evt) => {
+          const grabbing = this.el.components['wall-grabber'] && this.el.components['wall-grabber'].grabbed;
+          if (grabbing) return;
           const y = evt.detail.y;
           if (y < -0.7 && !this.active) {
             this.active = true;
@@ -828,8 +830,9 @@
           }
           if (Math.abs(x) < 0.2) this.readyX = true;
 
-          // Down → step back
-          if (y > this.data.threshold && this.readyY) {
+          // Down → step back (not while grabbing a wall)
+          const grabbing = this.el.components['wall-grabber'] && this.el.components['wall-grabber'].grabbed;
+          if (y > this.data.threshold && this.readyY && !grabbing) {
             this.readyY = false;
             const ry   = this.rig.object3D.rotation.y;
             const dist = this.data.stepDist;
@@ -846,14 +849,18 @@
     // ── Wall grabber — grip to grab and move walls in VR ──────────
     AFRAME.registerComponent('wall-grabber', {
       init: function () {
-        this.grabbed    = null;   // wall data object
+        this.grabbed    = null;
         this.offset     = new THREE.Vector3();
         this.ctrlPos    = new THREE.Vector3();
         this.ctrlQuat   = new THREE.Quaternion();
         this.invQuat    = new THREE.Quaternion();
+        this.joystickY  = 0;
 
         this.el.addEventListener('gripdown', () => this.grab());
         this.el.addEventListener('gripup',   () => this.release());
+        this.el.addEventListener('thumbstickmoved', (evt) => {
+          this.joystickY = evt.detail.y;
+        });
       },
 
       grab: function () {
@@ -883,10 +890,20 @@
         }
       },
 
-      tick: function () {
+      tick: function (time, delta) {
         if (!this.grabbed) return;
         const wEl = document.getElementById(this.grabbed.id);
         if (!wEl) { this.grabbed = null; return; }
+
+        // Joystick Y → push wall further / pull closer
+        if (Math.abs(this.joystickY) > 0.2) {
+          const len = this.offset.length();
+          if (len > 0) {
+            const change  = -this.joystickY * 0.004 * delta; // up = further
+            const newLen  = Math.max(0.4, Math.min(9, len + change));
+            this.offset.multiplyScalar(newLen / len);
+          }
+        }
 
         this.el.object3D.getWorldPosition(this.ctrlPos);
         this.el.object3D.getWorldQuaternion(this.ctrlQuat);
@@ -894,7 +911,6 @@
         const newPos = this.offset.clone().applyQuaternion(this.ctrlQuat).add(this.ctrlPos);
         wEl.object3D.position.copy(newPos);
 
-        // Sync back to data
         this.grabbed.position.x = newPos.x;
         this.grabbed.position.y = newPos.y;
         this.grabbed.position.z = newPos.z;
