@@ -636,12 +636,17 @@
       }
     });
 
-    // ── Smart laser — line only visible when hitting an object ────
+    // ── Smart laser — beam appears when roughly aimed at any target ─
     AFRAME.registerComponent('smart-laser', {
-      init: function () {
-        this.wasHitting = false;
+      schema: { angle: { default: 30 } }, // cone half-angle in degrees
 
-        // Own laser beam — thin box parented to controller
+      init: function () {
+        this.wasNear    = false;
+        this.ctrlPos    = new THREE.Vector3();
+        this.ctrlDir    = new THREE.Vector3();
+        this.ctrlQuat   = new THREE.Quaternion();
+        this.targetPos  = new THREE.Vector3();
+
         const beam = document.createElement('a-box');
         beam.setAttribute('width',    '0.005');
         beam.setAttribute('height',   '0.005');
@@ -654,12 +659,26 @@
       },
 
       tick: function () {
-        const rc = this.el.components.raycaster;
-        if (!rc) return;
-        const hitting = rc.intersectedEls.length > 0;
-        if (hitting === this.wasHitting) return;
-        this.wasHitting = hitting;
-        this.beam.object3D.visible = hitting;
+        this.el.object3D.getWorldPosition(this.ctrlPos);
+        this.el.object3D.getWorldQuaternion(this.ctrlQuat);
+        this.ctrlDir.set(0, 0, -1).applyQuaternion(this.ctrlQuat).normalize();
+
+        const targets = document.querySelectorAll('[data-room], .clickable');
+        const cosThreshold = Math.cos(THREE.MathUtils.degToRad(this.data.angle));
+        let near = false;
+
+        for (let i = 0; i < targets.length; i++) {
+          targets[i].object3D.getWorldPosition(this.targetPos);
+          const dot = this.ctrlDir.dot(
+            this.targetPos.sub(this.ctrlPos).normalize()
+          );
+          if (dot > cosThreshold) { near = true; break; }
+        }
+
+        if (near !== this.wasNear) {
+          this.wasNear = near;
+          this.beam.object3D.visible = near;
+        }
       }
     });
 
