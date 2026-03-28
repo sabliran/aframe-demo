@@ -481,11 +481,11 @@
       <a-entity id="left-controller"
         oculus-touch-controls="hand: left"
         vive-controls="hand: left"
-        laser-controls="hand: left"
         raycaster="objects: [data-room], .clickable; far: 10; showLine: true"
-        line="color: #4CC3D9; opacity: 0"
+        line="color: #4CC3D9; opacity: 0.8"
         arc-teleporter
         snap-turn
+        vr-pointer
         smart-laser>
       </a-entity>
 
@@ -493,11 +493,11 @@
       <a-entity id="right-controller"
         oculus-touch-controls="hand: right"
         vive-controls="hand: right"
-        laser-controls="hand: right"
         raycaster="objects: [data-room], .clickable; far: 10; showLine: true"
-        line="color: #4CC3D9; opacity: 0"
+        line="color: #4CC3D9; opacity: 0.8"
         arc-teleporter
         snap-turn
+        vr-pointer
         smart-laser>
       </a-entity>
 
@@ -625,21 +625,31 @@
       }
     });
 
-    // ── Smart laser — only visible when hitting an object ─────────
+    // ── VR pointer — trigger fires click on intersected element ───
+    AFRAME.registerComponent('vr-pointer', {
+      init: function () {
+        this.el.addEventListener('triggerdown', () => {
+          const rc = this.el.components.raycaster;
+          if (rc && rc.intersectedEls.length > 0) {
+            rc.intersectedEls[0].emit('click');
+          }
+        });
+      }
+    });
+
+    // ── Smart laser — line only visible when hitting an object ────
     AFRAME.registerComponent('smart-laser', {
       init: function () {
-        // Hide line on next frame (line component initialises after this)
-        this.el.sceneEl.addEventListener('loaded', () => {
-          this.el.setAttribute('line', 'opacity', 0);
-        });
-
-        this.el.addEventListener('raycaster-intersection', () => {
-          this.el.setAttribute('line', 'opacity', 0.8);
-        });
-
-        this.el.addEventListener('raycaster-intersection-cleared', () => {
-          this.el.setAttribute('line', 'opacity', 0);
-        });
+        this.wasHitting = false;
+      },
+      tick: function () {
+        const rc = this.el.components.raycaster;
+        if (!rc) return;
+        const hitting = rc.intersectedEls.length > 0;
+        if (hitting === this.wasHitting) return;
+        this.wasHitting = hitting;
+        const lineObj = this.el.getObject3D('line');
+        if (lineObj) lineObj.visible = hitting;
       }
     });
 
