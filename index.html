@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <html>
-
 <head>
   <meta charset="utf-8">
-  <title>VR Room Teleporter</title>
+  <title>VR Room Viewer</title>
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
   <style>
+    * { box-sizing: border-box; }
+
     body {
       margin: 0;
       overflow: hidden;
+      font-family: Arial, sans-serif;
     }
 
+    /* Info panel */
     #info-panel {
       position: fixed;
       top: 20px;
@@ -20,7 +22,6 @@
       padding: 15px;
       border-radius: 8px;
       color: white;
-      font-family: Arial, sans-serif;
       font-size: 14px;
       z-index: 1000;
     }
@@ -37,29 +38,12 @@
       padding: 8px 15px;
       border-radius: 5px;
       cursor: pointer;
-      margin-top: 10px;
       font-weight: bold;
     }
 
-    #info-panel button:hover {
-      background: #3AB0C7;
-    }
-
-    .instructions {
-      font-size: 12px;
-      margin-top: 10px;
-      padding: 10px;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 5px;
-    }
-
-    .instructions strong {
-      color: #4CC3D9;
-    }
+    #info-panel button:hover { background: #3AB0C7; }
 
     /* Editor panel */
-    * { box-sizing: border-box; }
-
     #editor-panel {
       position: fixed;
       top: 0;
@@ -69,21 +53,16 @@
       overflow-y: auto;
       z-index: 2000;
       transition: right 0.3s ease;
-      font-family: Arial, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       padding: 20px;
     }
 
-    #editor-panel.open {
-      right: 0;
-    }
+    #editor-panel.open { right: 0; }
 
     .editor-container {
-      max-width: 450px;
-      margin: 0 auto;
       background: white;
       border-radius: 15px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
       overflow: hidden;
     }
 
@@ -95,16 +74,8 @@
       position: relative;
     }
 
-    .editor-header h1 {
-      margin: 0;
-      font-size: 24px;
-    }
-
-    .editor-header p {
-      margin: 5px 0 0 0;
-      opacity: 0.8;
-      font-size: 14px;
-    }
+    .editor-header h1 { margin: 0; font-size: 22px; }
+    .editor-header p { margin: 5px 0 0; opacity: 0.8; font-size: 13px; }
 
     #close-editor {
       position: absolute;
@@ -118,17 +89,11 @@
       border-radius: 50%;
       cursor: pointer;
       font-size: 16px;
-      line-height: 1;
-      padding: 0;
     }
 
-    #close-editor:hover {
-      background: rgba(255,255,255,0.35);
-    }
+    #close-editor:hover { background: rgba(255,255,255,0.35); }
 
-    .editor-content {
-      padding: 20px;
-    }
+    .editor-content { padding: 20px; }
 
     .section {
       margin-bottom: 20px;
@@ -136,14 +101,12 @@
       border-bottom: 2px solid #ecf0f1;
     }
 
-    .section:last-child {
-      border-bottom: none;
-    }
+    .section:last-child { border-bottom: none; margin-bottom: 0; }
 
     .section h2 {
-      margin: 0 0 15px 0;
+      margin: 0 0 15px;
       color: #2C3E50;
-      font-size: 18px;
+      font-size: 16px;
       display: flex;
       align-items: center;
     }
@@ -152,7 +115,7 @@
       content: '';
       display: inline-block;
       width: 4px;
-      height: 20px;
+      height: 18px;
       background: #667eea;
       margin-right: 10px;
       border-radius: 2px;
@@ -161,111 +124,74 @@
     .file-upload-area {
       border: 3px dashed #bdc3c7;
       border-radius: 10px;
-      padding: 30px;
+      padding: 25px;
       text-align: center;
       background: #f8f9fa;
       cursor: pointer;
       transition: all 0.3s;
     }
 
-    .file-upload-area:hover {
+    .file-upload-area:hover, .file-upload-area.drag-over {
       border-color: #667eea;
       background: #f0f0ff;
     }
 
-    .file-upload-area.drag-over {
-      border-color: #667eea;
-      background: #e8e8ff;
-      transform: scale(1.02);
-    }
-
-    .file-upload-area input {
-      display: none;
-    }
-
-    .upload-icon {
-      font-size: 48px;
-      margin-bottom: 10px;
-    }
-
-    .upload-text {
-      color: #7f8c8d;
-      font-size: 14px;
-    }
+    .file-upload-area input { display: none; }
+    .upload-icon { font-size: 40px; margin-bottom: 8px; }
+    .upload-text { color: #7f8c8d; font-size: 13px; }
 
     .file-info {
       background: #e8f5e9;
-      padding: 15px;
+      padding: 12px;
       border-radius: 8px;
-      margin-top: 15px;
+      margin-top: 12px;
       display: none;
+      font-size: 13px;
     }
 
-    .file-info.active {
-      display: block;
-    }
+    .file-info.active { display: block; }
+    .file-info strong { color: #27ae60; }
 
-    .file-info strong {
-      color: #27ae60;
-    }
-
-    .control-group {
-      margin-bottom: 15px;
-    }
+    .control-group { margin-bottom: 12px; }
 
     .control-group label {
       display: block;
-      margin-bottom: 5px;
+      margin-bottom: 4px;
       color: #34495e;
       font-weight: 600;
-      font-size: 14px;
+      font-size: 13px;
     }
 
     .control-group select,
     .control-group input[type="color"] {
       width: 100%;
-      padding: 10px;
+      padding: 9px;
       border: 2px solid #ecf0f1;
       border-radius: 8px;
-      font-size: 14px;
-      transition: border-color 0.3s;
-    }
-
-    .control-group select:focus,
-    .control-group input:focus {
-      outline: none;
-      border-color: #667eea;
+      font-size: 13px;
     }
 
     .position-inputs {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
+      gap: 8px;
     }
 
     .position-inputs input {
-      padding: 10px;
+      padding: 9px;
       border: 2px solid #ecf0f1;
       border-radius: 8px;
       text-align: center;
-      font-size: 14px;
+      font-size: 13px;
+      width: 100%;
     }
 
-    .position-inputs input:focus {
-      outline: none;
-      border-color: #667eea;
-    }
-
-    .slider-container {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+    .slider-container { display: flex; align-items: center; gap: 10px; }
 
     .slider-container input[type="range"] {
       flex: 1;
-      height: 8px;
-      border-radius: 4px;
+      height: 6px;
+      border-radius: 3px;
       background: #ecf0f1;
       outline: none;
       -webkit-appearance: none;
@@ -275,40 +201,33 @@
     .slider-container input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       border-radius: 50%;
       background: #667eea;
       cursor: pointer;
     }
 
     .slider-container input[type="range"]::-moz-range-thumb {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       border-radius: 50%;
       background: #667eea;
       cursor: pointer;
       border: none;
     }
 
-    .slider-value {
-      min-width: 50px;
-      text-align: center;
-      font-weight: 600;
-      color: #667eea;
-    }
+    .slider-value { min-width: 45px; text-align: center; font-weight: 600; color: #667eea; font-size: 13px; }
 
     #editor-panel button {
       width: 100%;
-      padding: 15px;
+      padding: 12px;
       border: none;
       border-radius: 8px;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      transition: all 0.2s;
       margin-top: 0;
     }
 
@@ -318,52 +237,27 @@
       margin-bottom: 10px;
     }
 
-    .btn-primary:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-    }
+    .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
+    .btn-primary:disabled { background: #95a5a6; cursor: not-allowed; }
 
-    .btn-primary:disabled {
-      background: #95a5a6;
-      cursor: not-allowed;
-    }
+    .btn-danger { background: #e74c3c; color: white; }
+    .btn-danger:hover { background: #c0392b; transform: translateY(-1px); }
 
-    .btn-danger {
-      background: #e74c3c;
-      color: white;
-    }
-
-    .btn-danger:hover {
-      background: #c0392b;
-      transform: translateY(-2px);
-      box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
-    }
-
-    .models-list {
-      max-height: 200px;
-      overflow-y: auto;
-      margin-top: 15px;
-    }
+    .models-list { max-height: 180px; overflow-y: auto; margin-top: 12px; }
 
     .model-item {
       background: #f8f9fa;
-      padding: 12px;
+      padding: 10px;
       border-radius: 8px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      animation: slideIn 0.3s ease;
-    }
-
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateX(-20px); }
-      to { opacity: 1; transform: translateX(0); }
     }
 
     .model-item-name {
       flex: 1;
-      font-size: 14px;
+      font-size: 13px;
       color: #2C3E50;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -371,73 +265,50 @@
     }
 
     .model-item-remove {
-      background: #e74c3c;
+      background: #e74c3c !important;
       color: white;
       border: none;
-      padding: 6px 12px !important;
+      padding: 5px 10px !important;
       border-radius: 5px;
       cursor: pointer;
       font-size: 12px;
-      transition: background 0.3s;
       width: auto !important;
-      text-transform: none !important;
-      letter-spacing: normal !important;
+      margin-bottom: 0 !important;
     }
 
-    .model-item-remove:hover {
-      background: #c0392b;
-    }
+    .model-item-remove:hover { background: #c0392b !important; transform: none !important; }
 
     .status-message {
       background: #d4edda;
       color: #155724;
-      padding: 12px;
+      padding: 10px;
       border-radius: 8px;
-      margin-top: 15px;
+      margin-top: 12px;
       display: none;
+      font-size: 13px;
       border: 1px solid #c3e6cb;
     }
 
-    .status-message.active {
-      display: block;
-      animation: fadeIn 0.3s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    .status-message.error {
-      background: #f8d7da;
-      color: #721c24;
-      border-color: #f5c6cb;
-    }
+    .status-message.active { display: block; }
+    .status-message.error { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
   </style>
 </head>
-
 <body>
+
   <div id="info-panel">
-    <h3>VR Scene Viewer</h3>
-    <p>Open the editor to add 3D models</p>
-    <button onclick="toggleEditor()">Open Editor</button>
-    <div class="instructions">
-      <strong>Desktop:</strong> Click teleport menu<br>
-      <strong>VR:</strong> Point left controller, pull trigger to teleport<br>
-      <strong>VR:</strong> Point right controller at buttons
-    </div>
+    <h3>VR Room Viewer</h3>
+    <button onclick="toggleEditor()">Editor</button>
   </div>
 
-  <!-- Editor Panel -->
   <div id="editor-panel">
     <div class="editor-container">
       <div class="editor-header">
         <button id="close-editor" onclick="toggleEditor()">&#x2715;</button>
-        <h1>VR Model Editor</h1>
-        <p>Add 3D models to your VR scene</p>
+        <h1>3D Model Editor</h1>
+        <p>Add models to your VR scene</p>
       </div>
-
       <div class="editor-content">
+
         <div class="section">
           <h2>Upload Model</h2>
           <div class="file-upload-area" id="dropArea">
@@ -445,7 +316,7 @@
             <div class="upload-icon">📦</div>
             <div class="upload-text">
               <strong>Click to browse</strong> or drag & drop<br>
-              <small>STL, OBJ, GLTF, GLB files supported</small>
+              <small>STL, OBJ, GLTF, GLB supported</small>
             </div>
           </div>
           <div class="file-info" id="fileInfo">
@@ -455,16 +326,14 @@
 
         <div class="section">
           <h2>Model Settings</h2>
-
           <div class="control-group">
             <label>Target Room</label>
             <select id="roomSelect">
-              <option value="room1">🔵 Blue Room</option>
-              <option value="room2">🟢 Green Room</option>
-              <option value="room3">🔴 Red Room</option>
+              <option value="room1">Bleeue Room</option>
+              <option value="room2">Green Room</option>
+              <option value="room3">Red Room</option>
             </select>
           </div>
-
           <div class="control-group">
             <label>Position (X, Y, Z)</label>
             <div class="position-inputs">
@@ -473,7 +342,6 @@
               <input type="number" id="posZ" value="-3" step="0.1" placeholder="Z">
             </div>
           </div>
-
           <div class="control-group">
             <label>Scale</label>
             <div class="slider-container">
@@ -481,15 +349,13 @@
               <span class="slider-value" id="scaleValue">1.0</span>
             </div>
           </div>
-
           <div class="control-group">
-            <label>Rotation (Y-axis degrees)</label>
+            <label>Rotation Y</label>
             <div class="slider-container">
               <input type="range" id="rotationSlider" min="0" max="360" step="15" value="0">
               <span class="slider-value" id="rotationValue">0°</span>
             </div>
           </div>
-
           <div class="control-group">
             <label>Color</label>
             <input type="color" id="colorPicker" value="#ffffff">
@@ -498,7 +364,7 @@
 
         <div class="section">
           <h2>Actions</h2>
-          <button class="btn-primary" id="addModelBtn" disabled>Add Model to Scene</button>
+          <button class="btn-primary" id="addModelBtn" disabled>Add to Scene</button>
           <button class="btn-danger" id="clearAllBtn">Clear All Models</button>
           <div class="status-message" id="statusMessage"></div>
         </div>
@@ -506,304 +372,116 @@
         <div class="section">
           <h2>Loaded Models</h2>
           <div class="models-list" id="modelsList">
-            <p style="color: #7f8c8d; text-align: center; font-size: 14px;">No models loaded yet</p>
+            <p style="color:#7f8c8d;text-align:center;font-size:13px;">No models loaded yet</p>
           </div>
         </div>
+
       </div>
     </div>
   </div>
 
   <a-scene>
-    <!-- Camera rig with VR controllers -->
-    <a-entity id="camera-rig" position="0 0 0">
-      <a-camera id="camera">
-        <!-- Desktop cursor -->
-        <a-cursor color="#4CC3D9" raycaster="objects: .teleport-button"></a-cursor>
-      </a-camera>
+    <a-camera position="0 1.6 0"></a-camera>
 
-      <!-- Left Controller - Point Teleport -->
-      <a-entity id="left-controller" oculus-touch-controls="hand: left" vive-controls="hand: left"
-        windows-motion-controls="hand: left" point-teleport>
-        <a-ring id="teleport-marker" radius-inner="0.15" radius-outer="0.25" color="#4CC3D9"
-          rotation="-90 0 0" visible="false" material="side: double"></a-ring>
-      </a-entity>
-
-      <!-- Right Controller - UI Interaction -->
-      <a-entity id="right-controller" oculus-touch-controls="hand: right" vive-controls="hand: right"
-        windows-motion-controls="hand: right" laser-controls
-        raycaster="objects: .teleport-button, .clickable; far: 5; showLine: true"
-        line="color: #4CC3D9; opacity: 0.75"></a-entity>
-    </a-entity>
-
-    <!-- Sky -->
     <a-sky id="sky" color="#87CEEB"></a-sky>
 
-    <!-- ROOM 1: Blue Room -->
+    <!-- Room 1: Blue -->
     <a-entity id="room1" visible="true">
       <a-plane class="floor" position="0 0 0" rotation="-90 0 0" width="10" height="10" color="#4682B4"></a-plane>
-      <a-box position="0 2 -5" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
-      <a-box position="5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
-      <a-box position="-5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
-      <a-box position="0 2 5" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
-      <a-text value="BLUE ROOM" position="0 3 -4.8" align="center" color="#FFFFFF" width="8"></a-text>
+      <a-box position="0 2 -5"  width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
+      <a-box position="5 2 0"   rotation="0 90 0" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
+      <a-box position="-5 2 0"  rotation="0 90 0" width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
+      <a-box position="0 2 5"   width="10" height="4" depth="0.2" color="#5B9BD5"></a-box>
+      <a-text value="BLUE ROOM" position="0 3 -4.8" align="center" color="#FFF" width="8"></a-text>
       <a-entity id="room1-models"></a-entity>
     </a-entity>
 
-    <!-- ROOM 2: Green Room -->
+    <!-- Room 2: Green -->
     <a-entity id="room2" visible="false">
       <a-plane class="floor" position="0 0 0" rotation="-90 0 0" width="10" height="10" color="#228B22"></a-plane>
-      <a-box position="0 2 -5" width="10" height="4" depth="0.2" color="#32CD32"></a-box>
-      <a-box position="5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#32CD32"></a-box>
-      <a-box position="-5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#32CD32"></a-box>
-      <a-box position="0 2 5" width="10" height="4" depth="0.2" color="#32CD32"></a-box>
-      <a-text value="GREEN ROOM" position="0 3 -4.8" align="center" color="#FFFFFF" width="8"></a-text>
+      <a-box position="0 2 -5"  width="10" height="4" depth="0.2" color="#32CD32"></a-box>
+      <a-box position="5 2 0"   rotation="0 90 0" width="10" height="4" depth="0.2" color="#32CD32"></a-box>
+      <a-box position="-5 2 0"  rotation="0 90 0" width="10" height="4" depth="0.2" color="#32CD32"></a-box>
+      <a-box position="0 2 5"   width="10" height="4" depth="0.2" color="#32CD32"></a-box>
+      <a-text value="GREEN ROOM" position="0 3 -4.8" align="center" color="#FFF" width="8"></a-text>
       <a-entity id="room2-models"></a-entity>
     </a-entity>
 
-    <!-- ROOM 3: Red Room -->
+    <!-- Room 3: Red -->
     <a-entity id="room3" visible="false">
       <a-plane class="floor" position="0 0 0" rotation="-90 0 0" width="10" height="10" color="#8B0000"></a-plane>
-      <a-box position="0 2 -5" width="10" height="4" depth="0.2" color="#DC143C"></a-box>
-      <a-box position="5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#DC143C"></a-box>
-      <a-box position="-5 2 0" rotation="0 90 0" width="10" height="4" depth="0.2" color="#DC143C"></a-box>
-      <a-box position="0 2 5" width="10" height="4" depth="0.2" color="#DC143C"></a-box>
-      <a-text value="RED ROOM" position="0 3 -4.8" align="center" color="#FFFFFF" width="8"></a-text>
+      <a-box position="0 2 -5"  width="10" height="4" depth="0.2" color="#DC143C"></a-box>
+      <a-box position="5 2 0"   rotation="0 90 0" width="10" height="4" depth="0.2" color="#DC143C"></a-box>
+      <a-box position="-5 2 0"  rotation="0 90 0" width="10" height="4" depth="0.2" color="#DC143C"></a-box>
+      <a-box position="0 2 5"   width="10" height="4" depth="0.2" color="#DC143C"></a-box>
+      <a-text value="RED ROOM" position="0 3 -4.8" align="center" color="#FFF" width="8"></a-text>
       <a-entity id="room3-models"></a-entity>
     </a-entity>
 
-    <!-- Teleportation Menu Panel -->
+    <!-- Teleport menu -->
     <a-entity id="menu-panel" position="3 1.5 -2">
       <a-box width="2" height="2.5" depth="0.1" color="#2C3E50" opacity="0.9"></a-box>
-      <a-text value="TELEPORT" position="0 1 0.06" align="center" color="#FFFFFF" width="3"></a-text>
+      <a-text value="ROOMS" position="0 1 0.06" align="center" color="#FFF" width="3"></a-text>
 
-      <a-box class="teleport-button clickable" data-room="room1" position="0 0.5 0.06" width="1.6" height="0.5"
-        depth="0.05" color="#4682B4"></a-box>
-      <a-text value="Blue Room" position="0 0.5 0.12" align="center" color="#FFFFFF" width="3"></a-text>
+      <a-box class="room-btn" data-room="room1" position="0 0.5 0.06"  width="1.6" height="0.5" depth="0.05" color="#4682B4"></a-box>
+      <a-text value="Blue Room"  position="0 0.5 0.12"  align="center" color="#FFF" width="3"></a-text>
 
-      <a-box class="teleport-button clickable" data-room="room2" position="0 -0.2 0.06" width="1.6" height="0.5"
-        depth="0.05" color="#228B22"></a-box>
-      <a-text value="Green Room" position="0 -0.2 0.12" align="center" color="#FFFFFF" width="3"></a-text>
+      <a-box class="room-btn" data-room="room2" position="0 -0.2 0.06" width="1.6" height="0.5" depth="0.05" color="#228B22"></a-box>
+      <a-text value="Green Room" position="0 -0.2 0.12" align="center" color="#FFF" width="3"></a-text>
 
-      <a-box class="teleport-button clickable" data-room="room3" position="0 -0.9 0.06" width="1.6" height="0.5"
-        depth="0.05" color="#8B0000"></a-box>
-      <a-text value="Red Room" position="0 -0.9 0.12" align="center" color="#FFFFFF" width="3"></a-text>
+      <a-box class="room-btn" data-room="room3" position="0 -0.9 0.06" width="1.6" height="0.5" depth="0.05" color="#8B0000"></a-box>
+      <a-text value="Red Room"   position="0 -0.9 0.12" align="center" color="#FFF" width="3"></a-text>
     </a-entity>
 
-    <!-- Lighting -->
     <a-light type="ambient" color="#BBB"></a-light>
     <a-light type="directional" color="#FFF" intensity="0.6" position="-0.5 1 1"></a-light>
   </a-scene>
 
   <script>
-    let modelCounter = 0;
+    // ── Room switching ────────────────────────────────────────────
+    const skyColors = { room1: '#87CEEB', room2: '#90EE90', room3: '#FFB6C1' };
+    const sky = document.getElementById('sky');
 
-    // Toggle editor panel
+    document.querySelectorAll('.room-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.getAttribute('data-room');
+        ['room1', 'room2', 'room3'].forEach(r =>
+          document.getElementById(r).setAttribute('visible', r === target)
+        );
+        sky.setAttribute('color', skyColors[target]);
+      });
+      btn.addEventListener('mouseenter', () => btn.setAttribute('opacity', '0.7'));
+      btn.addEventListener('mouseleave', () => btn.setAttribute('opacity', '1'));
+    });
+
+    // ── Editor panel ──────────────────────────────────────────────
     function toggleEditor() {
       document.getElementById('editor-panel').classList.toggle('open');
     }
 
-    // Point-and-teleport component
-    AFRAME.registerComponent('point-teleport', {
-      init: function () {
-        this.cameraRig = document.getElementById('camera-rig');
-        this.marker = document.getElementById('teleport-marker');
-        this.raycaster = new THREE.Raycaster();
-        this.hitPoint = new THREE.Vector3();
-        this.hasHit = false;
-
-        this.floorMeshes = [];
-        const scene = document.querySelector('a-scene');
-        scene.addEventListener('loaded', () => this.collectFloors());
-        scene.addEventListener('child-attached', () => this.collectFloors());
-
-        this.el.addEventListener('triggerdown', () => {
-          if (this.hasHit) {
-            this.cameraRig.object3D.position.set(this.hitPoint.x, 0, this.hitPoint.z);
-          }
-        });
-
-        this.el.addEventListener('thumbstickdown', () => {
-          if (this.hasHit) {
-            this.cameraRig.object3D.position.set(this.hitPoint.x, 0, this.hitPoint.z);
-          }
-        });
-      },
-
-      collectFloors: function () {
-        this.floorMeshes = [];
-        document.querySelectorAll('.floor').forEach(el => {
-          const mesh = el.getObject3D('mesh');
-          if (mesh) this.floorMeshes.push(mesh);
-        });
-      },
-
-      tick: function () {
-        if (!this.floorMeshes.length) this.collectFloors();
-
-        const controllerObj = this.el.object3D;
-        const origin = new THREE.Vector3();
-        const direction = new THREE.Vector3(0, 0, -1);
-        const quat = new THREE.Quaternion();
-
-        controllerObj.getWorldPosition(origin);
-        controllerObj.getWorldQuaternion(quat);
-        direction.applyQuaternion(quat).normalize();
-
-        this.raycaster.set(origin, direction);
-        const hits = this.raycaster.intersectObjects(this.floorMeshes, true);
-
-        if (hits.length > 0) {
-          this.hitPoint.copy(hits[0].point);
-          this.hasHit = true;
-          this.marker.object3D.position.copy(this.hitPoint);
-          this.marker.object3D.position.y += 0.01;
-          this.marker.setAttribute('visible', true);
-        } else {
-          this.hasHit = false;
-          this.marker.setAttribute('visible', false);
-        }
-      }
-    });
-
-    // Add model to scene
-    function addModelToScene(modelData, room, position, scale, rotationY, color) {
-      const modelId = `model-${modelCounter++}`;
-      const roomContainer = document.getElementById(`${room}-models`);
-      const { fileData, fileName, fileType } = modelData;
-
-      let modelEntity;
-
-      if (fileType === 'stl') {
-        const loader = new THREE.STLLoader();
-        const geometry = loader.parse(fileData);
-
-        modelEntity = document.createElement('a-entity');
-        modelEntity.setAttribute('id', modelId);
-        modelEntity.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
-        modelEntity.setAttribute('rotation', `0 ${rotationY} 0`);
-        modelEntity.setAttribute('scale', `${scale} ${scale} ${scale}`);
-        modelEntity.setAttribute('geometry', { primitive: 'box', width: 1, height: 1, depth: 1 });
-        modelEntity.setAttribute('material', `color: ${color}`);
-
-        modelEntity.addEventListener('loaded', () => {
-          const mesh = modelEntity.getObject3D('mesh');
-          if (mesh) {
-            mesh.geometry = geometry;
-            mesh.geometry.computeBoundingSphere();
-            mesh.material.color.set(color);
-          }
-        });
-
-      } else if (fileType === 'obj') {
-        const blob = new Blob([fileData], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-
-        modelEntity = document.createElement('a-entity');
-        modelEntity.setAttribute('id', modelId);
-        modelEntity.setAttribute('obj-model', `obj: url(${url})`);
-        modelEntity.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
-        modelEntity.setAttribute('rotation', `0 ${rotationY} 0`);
-        modelEntity.setAttribute('scale', `${scale} ${scale} ${scale}`);
-        modelEntity.setAttribute('material', `color: ${color}`);
-
-      } else if (fileType === 'gltf' || fileType === 'glb') {
-        const blob = new Blob([fileData], {
-          type: fileType === 'glb' ? 'model/gltf-binary' : 'model/gltf+json'
-        });
-        const url = URL.createObjectURL(blob);
-
-        modelEntity = document.createElement('a-entity');
-        modelEntity.setAttribute('id', modelId);
-        modelEntity.setAttribute('gltf-model', `url(${url})`);
-        modelEntity.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
-        modelEntity.setAttribute('rotation', `0 ${rotationY} 0`);
-        modelEntity.setAttribute('scale', `${scale} ${scale} ${scale}`);
-      }
-
-      if (modelEntity) {
-        roomContainer.appendChild(modelEntity);
-        editorOnModelAdded(modelId, fileName);
-      }
-    }
-
-    // Remove model from scene
-    function removeModelFromScene(modelId) {
-      const modelEntity = document.getElementById(modelId);
-      if (modelEntity) modelEntity.remove();
-    }
-
-    // Clear all models from scene
-    function clearAllModels() {
-      ['room1', 'room2', 'room3'].forEach(room => {
-        const container = document.getElementById(`${room}-models`);
-        while (container.firstChild) container.removeChild(container.firstChild);
-      });
-    }
-
-    // Room teleportation system
-    AFRAME.registerComponent('room-teleporter', {
-      init: function () {
-        const buttons = document.querySelectorAll('.teleport-button');
-        const sky = document.querySelector('#sky');
-
-        const roomColors = {
-          room1: '#87CEEB',
-          room2: '#90EE90',
-          room3: '#FFB6C1'
-        };
-
-        buttons.forEach(button => {
-          button.addEventListener('click', () => {
-            const targetRoom = button.getAttribute('data-room');
-
-            document.getElementById('room1').setAttribute('visible', false);
-            document.getElementById('room2').setAttribute('visible', false);
-            document.getElementById('room3').setAttribute('visible', false);
-            document.getElementById(targetRoom).setAttribute('visible', true);
-
-            sky.setAttribute('color', roomColors[targetRoom]);
-
-            button.setAttribute('scale', '1.1 1.1 1.1');
-            setTimeout(() => button.setAttribute('scale', '1 1 1'), 200);
-          });
-
-          button.addEventListener('mouseenter', () => button.setAttribute('opacity', '0.7'));
-          button.addEventListener('mouseleave', () => button.setAttribute('opacity', '1'));
-        });
-      }
-    });
-
-    document.querySelector('a-scene').setAttribute('room-teleporter', '');
-
-    // ── Editor logic ──────────────────────────────────────────────
+    let modelCounter = 0;
     let currentFile = null;
     let loadedModels = [];
 
-    const dropArea = document.getElementById('dropArea');
-    const fileInput = document.getElementById('fileInput');
-    const fileInfo = document.getElementById('fileInfo');
-    const fileNameEl = document.getElementById('fileName');
-    const addModelBtn = document.getElementById('addModelBtn');
-    const clearAllBtn = document.getElementById('clearAllBtn');
-    const scaleSlider = document.getElementById('scaleSlider');
-    const scaleValue = document.getElementById('scaleValue');
+    const dropArea      = document.getElementById('dropArea');
+    const fileInput     = document.getElementById('fileInput');
+    const fileInfo      = document.getElementById('fileInfo');
+    const fileNameEl    = document.getElementById('fileName');
+    const addModelBtn   = document.getElementById('addModelBtn');
+    const clearAllBtn   = document.getElementById('clearAllBtn');
+    const scaleSlider   = document.getElementById('scaleSlider');
+    const scaleValue    = document.getElementById('scaleValue');
     const rotationSlider = document.getElementById('rotationSlider');
     const rotationValue = document.getElementById('rotationValue');
     const statusMessage = document.getElementById('statusMessage');
-    const modelsList = document.getElementById('modelsList');
+    const modelsList    = document.getElementById('modelsList');
 
     dropArea.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
 
-    fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
-
-    dropArea.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropArea.classList.add('drag-over');
-    });
-
+    dropArea.addEventListener('dragover', e => { e.preventDefault(); dropArea.classList.add('drag-over'); });
     dropArea.addEventListener('dragleave', () => dropArea.classList.remove('drag-over'));
-
-    dropArea.addEventListener('drop', (e) => {
+    dropArea.addEventListener('drop', e => {
       e.preventDefault();
       dropArea.classList.remove('drag-over');
       handleFile(e.dataTransfer.files[0]);
@@ -811,34 +489,30 @@
 
     function handleFile(file) {
       if (!file) return;
-
-      const extension = file.name.split('.').pop().toLowerCase();
-      if (!['stl', 'obj', 'gltf', 'glb'].includes(extension)) {
-        showStatus('Invalid file type. Please use STL, OBJ, GLTF, or GLB files.', true);
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (!['stl', 'obj', 'gltf', 'glb'].includes(ext)) {
+        showStatus('Unsupported file. Use STL, OBJ, GLTF or GLB.', true);
         return;
       }
-
       currentFile = file;
       fileNameEl.textContent = file.name;
       fileInfo.classList.add('active');
       addModelBtn.disabled = false;
-      showStatus('File loaded successfully!', false);
+      showStatus('File ready.', false);
     }
 
-    scaleSlider.addEventListener('input', (e) => { scaleValue.textContent = e.target.value; });
-    rotationSlider.addEventListener('input', (e) => { rotationValue.textContent = e.target.value + '°'; });
+    scaleSlider.addEventListener('input', e => scaleValue.textContent = e.target.value);
+    rotationSlider.addEventListener('input', e => rotationValue.textContent = e.target.value + '°');
 
     addModelBtn.addEventListener('click', () => {
       if (!currentFile) return;
-
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = e => {
         const modelData = {
           fileData: e.target.result,
           fileName: currentFile.name,
           fileType: currentFile.name.split('.').pop().toLowerCase()
         };
-
         const settings = {
           room: document.getElementById('roomSelect').value,
           position: {
@@ -850,60 +524,98 @@
           rotationY: parseFloat(rotationSlider.value),
           color: document.getElementById('colorPicker').value
         };
-
-        addModelToScene(modelData, settings.room, settings.position, settings.scale, settings.rotationY, settings.color);
-        showStatus('Model added to VR scene!', false);
+        addModelToScene(modelData, settings);
+        showStatus('Model added!', false);
       };
-
       reader.readAsArrayBuffer(currentFile);
     });
 
     clearAllBtn.addEventListener('click', () => {
-      if (confirm('Are you sure you want to remove all models from the scene?')) {
-        clearAllModels();
-        loadedModels = [];
-        updateModelsList();
-        showStatus('All models cleared!', false);
-      }
+      if (!confirm('Remove all models from the scene?')) return;
+      ['room1', 'room2', 'room3'].forEach(r => {
+        const c = document.getElementById(`${r}-models`);
+        while (c.firstChild) c.removeChild(c.firstChild);
+      });
+      loadedModels = [];
+      renderModelsList();
+      showStatus('All models cleared.', false);
     });
 
-    function editorOnModelAdded(modelId, fileName) {
-      loadedModels.push({ id: modelId, name: fileName });
-      updateModelsList();
-    }
+    function addModelToScene(modelData, settings) {
+      const { fileData, fileName, fileType } = modelData;
+      const { room, position, scale, rotationY, color } = settings;
+      const modelId = `model-${modelCounter++}`;
+      const container = document.getElementById(`${room}-models`);
+      let entity;
 
-    function updateModelsList() {
-      if (loadedModels.length === 0) {
-        modelsList.innerHTML = '<p style="color: #7f8c8d; text-align: center; font-size: 14px;">No models loaded yet</p>';
-        return;
+      if (fileType === 'obj') {
+        const url = URL.createObjectURL(new Blob([fileData], { type: 'text/plain' }));
+        entity = document.createElement('a-entity');
+        entity.setAttribute('obj-model', `obj: url(${url})`);
+        entity.setAttribute('material', `color: ${color}`);
+      } else if (fileType === 'gltf' || fileType === 'glb') {
+        const type = fileType === 'glb' ? 'model/gltf-binary' : 'model/gltf+json';
+        const url = URL.createObjectURL(new Blob([fileData], { type }));
+        entity = document.createElement('a-entity');
+        entity.setAttribute('gltf-model', `url(${url})`);
+      } else {
+        // STL — use a-entity with box geometry as placeholder; swap geometry after load
+        entity = document.createElement('a-entity');
+        entity.setAttribute('geometry', 'primitive: box');
+        entity.setAttribute('material', `color: ${color}`);
+        entity.addEventListener('loaded', () => {
+          const mesh = entity.getObject3D('mesh');
+          if (mesh) {
+            const loader = new THREE.STLLoader ? new THREE.STLLoader() : null;
+            if (loader) {
+              mesh.geometry = loader.parse(fileData);
+              mesh.geometry.computeBoundingSphere();
+            }
+          }
+        });
       }
 
+      entity.setAttribute('id', modelId);
+      entity.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
+      entity.setAttribute('rotation', `0 ${rotationY} 0`);
+      entity.setAttribute('scale', `${scale} ${scale} ${scale}`);
+      container.appendChild(entity);
+
+      loadedModels.push({ id: modelId, name: fileName });
+      renderModelsList();
+    }
+
+    function removeModel(modelId) {
+      const el = document.getElementById(modelId);
+      if (el) el.remove();
+      loadedModels = loadedModels.filter(m => m.id !== modelId);
+      renderModelsList();
+      showStatus('Model removed.', false);
+    }
+
+    function renderModelsList() {
+      if (loadedModels.length === 0) {
+        modelsList.innerHTML = '<p style="color:#7f8c8d;text-align:center;font-size:13px;">No models loaded yet</p>';
+        return;
+      }
       modelsList.innerHTML = '';
       loadedModels.forEach(model => {
         const item = document.createElement('div');
         item.className = 'model-item';
         item.innerHTML = `
           <span class="model-item-name">${model.name}</span>
-          <button class="model-item-remove" onclick="editorRemoveModel('${model.id}')">Remove</button>
+          <button class="model-item-remove" onclick="removeModel('${model.id}')">Remove</button>
         `;
         modelsList.appendChild(item);
       });
     }
 
-    function editorRemoveModel(modelId) {
-      removeModelFromScene(modelId);
-      loadedModels = loadedModels.filter(m => m.id !== modelId);
-      updateModelsList();
-      showStatus('Model removed!', false);
-    }
-
-    function showStatus(message, isError) {
-      statusMessage.textContent = message;
+    function showStatus(msg, isError) {
+      statusMessage.textContent = msg;
       statusMessage.classList.add('active');
       statusMessage.classList.toggle('error', isError);
       setTimeout(() => statusMessage.classList.remove('active'), 3000);
     }
   </script>
 </body>
-
 </html>
