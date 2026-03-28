@@ -367,6 +367,75 @@
 
     .status-message.active { display: block; }
     .status-message.error { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+
+    /* Walls editor */
+    .wall-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .wall-form-grid input[type="number"],
+    .wall-form-grid select {
+      padding: 8px;
+      border: 2px solid #ecf0f1;
+      border-radius: 8px;
+      font-size: 13px;
+      width: 100%;
+    }
+
+    .wall-form-grid input[type="number"]:focus,
+    .wall-form-grid select:focus { outline: none; border-color: #667eea; }
+
+    .wall-form-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .wall-form-row label { font-size: 12px; color: #7f8c8d; white-space: nowrap; }
+
+    .wall-item {
+      background: #f8f9fa;
+      padding: 8px 10px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .wall-color-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .wall-item-label {
+      flex: 1;
+      font-size: 12px;
+      color: #2C3E50;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .wall-delete-btn {
+      background: #e74c3c !important;
+      color: white;
+      border: none;
+      padding: 4px 9px !important;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 11px;
+      width: auto !important;
+      margin-bottom: 0 !important;
+    }
+
+    .wall-delete-btn:hover { background: #c0392b !important; transform: none !important; }
   </style>
 </head>
 <body>
@@ -394,6 +463,46 @@
             <input type="color" id="newRoomColor" value="#4682B4" title="Wall color">
             <button class="btn-primary" style="width:auto;padding:9px 14px;margin-bottom:0;" onclick="createRoom()">+ Add</button>
           </div>
+        </div>
+
+        <!-- Walls section -->
+        <div class="section">
+          <h2>Walls</h2>
+          <div id="wallsList"></div>
+
+          <div class="wall-form-grid">
+            <div>
+              <label style="font-size:12px;color:#7f8c8d;">Room</label>
+              <select id="wallRoom"></select>
+            </div>
+            <div>
+              <label style="font-size:12px;color:#7f8c8d;">Color</label>
+              <input type="color" id="wallColor" value="#95a5a6"
+                style="width:100%;height:36px;padding:2px;border:2px solid #ecf0f1;border-radius:8px;cursor:pointer;">
+            </div>
+            <div>
+              <label style="font-size:12px;color:#7f8c8d;">Width</label>
+              <input type="number" id="wallWidth" value="3" step="0.5" min="0.5">
+            </div>
+            <div>
+              <label style="font-size:12px;color:#7f8c8d;">Height</label>
+              <input type="number" id="wallHeight" value="4" step="0.5" min="0.5">
+            </div>
+            <div>
+              <label style="font-size:12px;color:#7f8c8d;">Pos X</label>
+              <input type="number" id="wallPosX" value="0" step="0.5">
+            </div>
+            <div>
+              <label style="font-size:12px;color:#7f8c8d;">Pos Z</label>
+              <input type="number" id="wallPosZ" value="-2" step="0.5">
+            </div>
+            <div>
+              <label style="font-size:12px;color:#7f8c8d;">Rotation Y</label>
+              <input type="number" id="wallRotY" value="0" step="15" min="0" max="360">
+            </div>
+          </div>
+
+          <button class="btn-primary" onclick="addWall()" style="margin-bottom:0;">+ Add Wall</button>
         </div>
 
         <!-- Upload section -->
@@ -486,7 +595,8 @@
         arc-teleporter
         snap-turn
         vr-pointer
-        smart-laser>
+        smart-laser
+        wall-grabber>
       </a-entity>
 
       <!-- Right controller — thumbstick up: arc teleport | L/R: snap turn | trigger: click -->
@@ -497,7 +607,8 @@
         arc-teleporter
         snap-turn
         vr-pointer
-        smart-laser>
+        smart-laser
+        wall-grabber>
       </a-entity>
 
     </a-entity>
@@ -732,15 +843,113 @@
       }
     });
 
-    // ── Room collider component ───────────────────────────────────
-    AFRAME.registerComponent('room-collider', {
+    // ── Wall grabber — grip to grab and move walls in VR ──────────
+    AFRAME.registerComponent('wall-grabber', {
+      init: function () {
+        this.grabbed    = null;   // wall data object
+        this.offset     = new THREE.Vector3();
+        this.ctrlPos    = new THREE.Vector3();
+        this.ctrlQuat   = new THREE.Quaternion();
+        this.invQuat    = new THREE.Quaternion();
+
+        this.el.addEventListener('gripdown', () => this.grab());
+        this.el.addEventListener('gripup',   () => this.release());
+      },
+
+      grab: function () {
+        if (this.grabbed) return;
+        this.el.object3D.getWorldPosition(this.ctrlPos);
+        this.el.object3D.getWorldQuaternion(this.ctrlQuat);
+        this.invQuat.copy(this.ctrlQuat).invert();
+
+        let nearest = null, nearestDist = 2.0;
+        walls.forEach(w => {
+          const el = document.getElementById(w.id);
+          if (!el) return;
+          const wPos = new THREE.Vector3();
+          el.object3D.getWorldPosition(wPos);
+          const d = this.ctrlPos.distanceTo(wPos);
+          if (d < nearestDist) { nearestDist = d; nearest = w; }
+        });
+
+        if (nearest) {
+          this.grabbed = nearest;
+          const wEl = document.getElementById(nearest.id);
+          const wPos = new THREE.Vector3();
+          wEl.object3D.getWorldPosition(wPos);
+          // Offset in controller local space
+          this.offset.subVectors(wPos, this.ctrlPos).applyQuaternion(this.invQuat);
+          wEl.setAttribute('material', `color: ${nearest.color}; emissive: #ffffff; emissiveIntensity: 0.15`);
+        }
+      },
+
       tick: function () {
-        const pos = this.el.object3D.position;
+        if (!this.grabbed) return;
+        const wEl = document.getElementById(this.grabbed.id);
+        if (!wEl) { this.grabbed = null; return; }
+
+        this.el.object3D.getWorldPosition(this.ctrlPos);
+        this.el.object3D.getWorldQuaternion(this.ctrlQuat);
+
+        const newPos = this.offset.clone().applyQuaternion(this.ctrlQuat).add(this.ctrlPos);
+        wEl.object3D.position.copy(newPos);
+
+        // Sync back to data
+        this.grabbed.position.x = newPos.x;
+        this.grabbed.position.y = newPos.y;
+        this.grabbed.position.z = newPos.z;
+      },
+
+      release: function () {
+        if (!this.grabbed) return;
+        const wEl = document.getElementById(this.grabbed.id);
+        if (wEl) wEl.setAttribute('material', `color: ${this.grabbed.color}`);
+        this.grabbed = null;
+      }
+    });
+
+    // ── Room collider — room bounds + custom wall collision ───────
+    AFRAME.registerComponent('room-collider', {
+      init: function () {
+        this._tmp   = new THREE.Vector3();
+        this._inv   = new THREE.Quaternion();
+        this._push  = new THREE.Vector3();
+      },
+      tick: function () {
+        const pos   = this.el.object3D.position;
         const limit = 4.6;
         if (pos.x >  limit) pos.x =  limit;
         if (pos.x < -limit) pos.x = -limit;
         if (pos.z >  limit) pos.z =  limit;
         if (pos.z < -limit) pos.z = -limit;
+
+        // Custom wall collision
+        const playerR = 0.3;
+        walls.forEach(w => {
+          const wEl = document.getElementById(w.id);
+          if (!wEl) return;
+
+          // Transform player position into wall's local space (XZ only)
+          this._inv.copy(wEl.object3D.quaternion).invert();
+          this._tmp.set(pos.x - w.position.x, 0, pos.z - w.position.z)
+                   .applyQuaternion(this._inv);
+
+          const halfW = w.width  / 2 + playerR;
+          const halfD = w.depth  / 2 + playerR;
+
+          if (Math.abs(this._tmp.x) < halfW && Math.abs(this._tmp.z) < halfD) {
+            const ovX = halfW - Math.abs(this._tmp.x);
+            const ovZ = halfD - Math.abs(this._tmp.z);
+            this._push.set(0, 0, 0);
+            if (ovZ < ovX) this._push.z = this._tmp.z > 0 ?  ovZ : -ovZ;
+            else           this._push.x = this._tmp.x > 0 ?  ovX : -ovX;
+
+            // Back to world space
+            this._push.applyQuaternion(wEl.object3D.quaternion);
+            pos.x += this._push.x;
+            pos.z += this._push.z;
+          }
+        });
       }
     });
 
@@ -751,7 +960,11 @@
       { id: 'room3', name: 'Red Room',   color: '#DC143C', floorColor: '#8B0000' },
     ];
     let activeRoomId = 'room1';
-    let roomCounter = 4;
+    let roomCounter  = 4;
+
+    // ── Walls data ────────────────────────────────────────────────
+    let walls = [];
+    let wallCounter = 0;
 
     function darken(hex) {
       const r = Math.round(parseInt(hex.slice(1,3),16) * 0.75);
@@ -906,6 +1119,82 @@
       if (rooms.find(r => r.id === current)) sel.value = current;
     }
 
+    // ── Wall functions ────────────────────────────────────────────
+    function renderWallRoomSelect() {
+      const sel = document.getElementById('wallRoom');
+      const cur = sel.value;
+      sel.innerHTML = '';
+      rooms.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = r.name;
+        sel.appendChild(opt);
+      });
+      if (rooms.find(r => r.id === cur)) sel.value = cur;
+    }
+
+    function addWall() {
+      const room   = document.getElementById('wallRoom').value;
+      const color  = document.getElementById('wallColor').value;
+      const width  = parseFloat(document.getElementById('wallWidth').value)  || 3;
+      const height = parseFloat(document.getElementById('wallHeight').value) || 4;
+      const posX   = parseFloat(document.getElementById('wallPosX').value)   || 0;
+      const posZ   = parseFloat(document.getElementById('wallPosZ').value)   || -2;
+      const rotY   = parseFloat(document.getElementById('wallRotY').value)   || 0;
+      const depth  = 0.2;
+      const id     = `vr-wall-${wallCounter++}`;
+
+      const wall = { id, room, color, width, height, depth,
+                     position: { x: posX, y: height / 2, z: posZ }, rotY };
+      walls.push(wall);
+
+      // Create entity parented to room
+      const roomEl = document.getElementById(room);
+      if (roomEl) {
+        const el = document.createElement('a-box');
+        el.setAttribute('id', id);
+        el.setAttribute('class', 'vr-wall');
+        el.setAttribute('width',    width);
+        el.setAttribute('height',   height);
+        el.setAttribute('depth',    depth);
+        el.setAttribute('color',    color);
+        el.setAttribute('position', `${posX} ${height/2} ${posZ}`);
+        el.setAttribute('rotation', `0 ${rotY} 0`);
+        roomEl.appendChild(el);
+      }
+
+      renderWallsList();
+      showStatus('Wall added.', false);
+    }
+
+    function removeWall(id) {
+      walls = walls.filter(w => w.id !== id);
+      const el = document.getElementById(id);
+      if (el) el.remove();
+      renderWallsList();
+      showStatus('Wall removed.', false);
+    }
+
+    function renderWallsList() {
+      const list = document.getElementById('wallsList');
+      list.innerHTML = '';
+      if (walls.length === 0) {
+        list.innerHTML = '<p style="color:#7f8c8d;font-size:12px;text-align:center;">No walls added yet</p>';
+        return;
+      }
+      walls.forEach(w => {
+        const roomName = (rooms.find(r => r.id === w.room) || {}).name || w.room;
+        const item = document.createElement('div');
+        item.className = 'wall-item';
+        item.innerHTML = `
+          <div class="wall-color-dot" style="background:${w.color}"></div>
+          <span class="wall-item-label">${w.width}×${w.height} in ${roomName}</span>
+          <button class="wall-delete-btn" onclick="removeWall('${w.id}')">Remove</button>
+        `;
+        list.appendChild(item);
+      });
+    }
+
     function createRoom() {
       const nameInput = document.getElementById('newRoomName');
       const colorInput = document.getElementById('newRoomColor');
@@ -919,6 +1208,7 @@
       renderScene();
       renderRoomsList();
       renderRoomSelect();
+      renderWallRoomSelect();
       showStatus(`Room "${name}" created.`, false);
     }
 
@@ -926,12 +1216,15 @@
       const room = rooms.find(r => r.id === id);
       rooms = rooms.filter(r => r.id !== id);
       loadedModels = loadedModels.filter(m => m.room !== id);
+      walls = walls.filter(w => w.room !== id);
 
       if (activeRoomId === id) activeRoomId = rooms.length ? rooms[0].id : null;
 
       renderScene();
       renderRoomsList();
       renderRoomSelect();
+      renderWallRoomSelect();
+      renderWallsList();
       renderModelsList();
       showStatus(`Room "${room.name}" deleted.`, false);
     }
@@ -944,12 +1237,12 @@
       const room = rooms.find(r => r.id === id);
       room.name = newName;
 
-      // Update scene label and menu
       const label = document.getElementById(`${id}-label`);
       if (label) label.setAttribute('value', newName.toUpperCase());
       renderMenuPanel();
       renderRoomsList();
       renderRoomSelect();
+      renderWallRoomSelect();
       showStatus(`Renamed to "${newName}".`, false);
     }
 
@@ -1113,6 +1406,8 @@
       renderScene();
       renderRoomsList();
       renderRoomSelect();
+      renderWallRoomSelect();
+      renderWallsList();
     });
   </script>
 </body>
