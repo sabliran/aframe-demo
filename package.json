@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A-Frame demo project",
   "scripts": {
-    "start": "npx serve . -l 3000 --ssl-cert cert.pem --ssl-key key.pem"
+    "start": "npx serve . -l 3000 --ssl-cert cert.pem --ssl-key key.pem",
+    "serve-cert": "npx serve . -l 8080"
   }
 }
