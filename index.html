@@ -477,21 +477,26 @@
         </a-cursor>
       </a-camera>
 
-      <!-- Left controller — trigger: arc teleport | thumbstick L/R: snap turn -->
+      <!-- Left controller — thumbstick up: arc teleport | L/R: snap turn | trigger: click -->
       <a-entity id="left-controller"
         oculus-touch-controls="hand: left"
         vive-controls="hand: left"
+        laser-controls="hand: left"
+        raycaster="objects: [data-room], .clickable; far: 10; showLine: true"
+        line="color: #4CC3D9; opacity: 0.8"
         arc-teleporter
         snap-turn>
       </a-entity>
 
-      <!-- Right controller — laser pointer, trigger fires click -->
+      <!-- Right controller — thumbstick up: arc teleport | L/R: snap turn | trigger: click -->
       <a-entity id="right-controller"
         oculus-touch-controls="hand: right"
         vive-controls="hand: right"
         laser-controls="hand: right"
-        raycaster="objects: [data-room]; far: 10; showLine: true"
-        line="color: #4CC3D9; opacity: 0.8">
+        raycaster="objects: [data-room], .clickable; far: 10; showLine: true"
+        line="color: #4CC3D9; opacity: 0.8"
+        arc-teleporter
+        snap-turn>
       </a-entity>
 
     </a-entity>
