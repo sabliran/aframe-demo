@@ -454,6 +454,15 @@
       </div>
       <div class="editor-content">
 
+        <!-- VR Edit Mode toggle -->
+        <div class="section" style="padding-bottom:15px;margin-bottom:15px;">
+          <button id="vrEditToggle" onclick="toggleVrEdit()"
+            style="width:100%;padding:12px;font-size:15px;font-weight:bold;
+                   background:#e67e22;color:white;border:none;border-radius:8px;cursor:pointer;">
+            VR Edit Mode: OFF
+          </button>
+        </div>
+
         <!-- Rooms section -->
         <div class="section">
           <h2>Rooms</h2>
@@ -787,7 +796,8 @@
           .applyQuaternion(this.ctrlQuat)
           .normalize();
 
-        const targets = document.querySelectorAll('[data-room], .clickable');
+        const extraSel = vrEditMode ? ', .vr-wall, .vr-grabbable' : '';
+        const targets = document.querySelectorAll(`[data-room], .clickable${extraSel}`);
         const cosThreshold = Math.cos(THREE.MathUtils.degToRad(this.data.angle));
         let near = false;
 
@@ -847,14 +857,15 @@
       }
     });
 
-    // ── Wall grabber — grip to grab and move walls in VR ──────────
+    // ── Wall / model grabber — grip to grab and move objects in VR ─
     AFRAME.registerComponent('wall-grabber', {
       init: function () {
-        this.grabbed    = null;
+        this.grabbed    = null;  // { id, type: 'wall'|'model', ... }
         this.offset     = new THREE.Vector3();
         this.ctrlPos    = new THREE.Vector3();
         this.ctrlQuat   = new THREE.Quaternion();
         this.invQuat    = new THREE.Quaternion();
+        this._wPos      = new THREE.Vector3();
         this.joystickY  = 0;
         this.joystickX  = 0;
 
@@ -867,68 +878,99 @@
       },
 
       grab: function () {
-        if (this.grabbed) return;
+        if (this.grabbed || !vrEditMode) return;
         this.el.object3D.getWorldPosition(this.ctrlPos);
         this.el.object3D.getWorldQuaternion(this.ctrlQuat);
         this.invQuat.copy(this.ctrlQuat).invert();
 
-        let nearest = null, nearestDist = 2.0;
+        let nearest = null, nearestDist = 4.0, nearestType = null;
+
+        // Search walls
         walls.forEach(w => {
           const el = document.getElementById(w.id);
           if (!el) return;
-          const wPos = new THREE.Vector3();
-          el.object3D.getWorldPosition(wPos);
-          const d = this.ctrlPos.distanceTo(wPos);
-          if (d < nearestDist) { nearestDist = d; nearest = w; }
+          el.object3D.getWorldPosition(this._wPos);
+          const d = this.ctrlPos.distanceTo(this._wPos);
+          if (d < nearestDist) { nearestDist = d; nearest = w; nearestType = 'wall'; }
+        });
+
+        // Search loaded models
+        loadedModels.forEach(m => {
+          const el = document.getElementById(m.id);
+          if (!el) return;
+          el.object3D.getWorldPosition(this._wPos);
+          const d = this.ctrlPos.distanceTo(this._wPos);
+          if (d < nearestDist) { nearestDist = d; nearest = m; nearestType = 'model'; }
         });
 
         if (nearest) {
-          this.grabbed = nearest;
-          const wEl = document.getElementById(nearest.id);
-          const wPos = new THREE.Vector3();
-          wEl.object3D.getWorldPosition(wPos);
-          // Offset in controller local space
-          this.offset.subVectors(wPos, this.ctrlPos).applyQuaternion(this.invQuat);
-          wEl.setAttribute('material', `color: ${nearest.color}; emissive: #ffffff; emissiveIntensity: 0.15`);
+          const grabEl = document.getElementById(nearest.id);
+          grabEl.object3D.getWorldPosition(this._wPos);
+          this.offset.subVectors(this._wPos, this.ctrlPos).applyQuaternion(this.invQuat);
+          this.grabbed = { ...nearest, type: nearestType };
+
+          // Visual highlight for walls
+          if (nearestType === 'wall') {
+            grabEl.setAttribute('material', `color: ${nearest.color}; emissive: #ffffff; emissiveIntensity: 0.15`);
+          }
+          // For models, scale slightly to indicate selection
+          if (nearestType === 'model') {
+            const s = grabEl.object3D.scale;
+            grabEl.object3D.scale.set(s.x * 1.05, s.y * 1.05, s.z * 1.05);
+            this.grabbed._origScale = { x: s.x * 1.05, y: s.y * 1.05, z: s.z * 1.05 };
+          }
         }
       },
 
       tick: function (time, delta) {
         if (!this.grabbed) return;
-        const wEl = document.getElementById(this.grabbed.id);
-        if (!wEl) { this.grabbed = null; return; }
+        const grabEl = document.getElementById(this.grabbed.id);
+        if (!grabEl) { this.grabbed = null; return; }
 
-        // Joystick Y → push wall further / pull closer
+        // Joystick Y → push further / pull closer
         if (Math.abs(this.joystickY) > 0.2) {
           const len = this.offset.length();
           if (len > 0) {
-            const change  = -this.joystickY * 0.004 * delta; // up = further
-            const newLen  = Math.max(0.4, Math.min(9, len + change));
+            const change = -this.joystickY * 0.004 * delta;
+            const newLen = Math.max(0.4, Math.min(9, len + change));
             this.offset.multiplyScalar(newLen / len);
           }
         }
 
-        // Joystick X → rotate wall around Y axis
+        // Joystick X → rotate around Y axis
         if (Math.abs(this.joystickX) > 0.2) {
-          wEl.object3D.rotation.y += this.joystickX * 0.002 * delta;
-          this.grabbed.rotY = THREE.MathUtils.radToDeg(wEl.object3D.rotation.y);
+          grabEl.object3D.rotation.y += this.joystickX * 0.002 * delta;
+          if (this.grabbed.type === 'wall') {
+            this.grabbed.rotY = THREE.MathUtils.radToDeg(grabEl.object3D.rotation.y);
+          }
         }
 
         this.el.object3D.getWorldPosition(this.ctrlPos);
         this.el.object3D.getWorldQuaternion(this.ctrlQuat);
 
         const newPos = this.offset.clone().applyQuaternion(this.ctrlQuat).add(this.ctrlPos);
-        wEl.object3D.position.copy(newPos);
+        grabEl.object3D.position.copy(newPos);
 
-        this.grabbed.position.x = newPos.x;
-        this.grabbed.position.y = newPos.y;
-        this.grabbed.position.z = newPos.z;
+        // Keep data in sync for wall collisions
+        if (this.grabbed.type === 'wall') {
+          const w = walls.find(w => w.id === this.grabbed.id);
+          if (w) { w.position.x = newPos.x; w.position.y = newPos.y; w.position.z = newPos.z; }
+        }
       },
 
       release: function () {
         if (!this.grabbed) return;
-        const wEl = document.getElementById(this.grabbed.id);
-        if (wEl) wEl.setAttribute('material', `color: ${this.grabbed.color}`);
+        const grabEl = document.getElementById(this.grabbed.id);
+        if (grabEl) {
+          if (this.grabbed.type === 'wall') {
+            const w = walls.find(w => w.id === this.grabbed.id);
+            grabEl.setAttribute('material', `color: ${w ? w.color : '#ffffff'}`);
+          }
+          if (this.grabbed.type === 'model' && this.grabbed._origScale) {
+            const s = this.grabbed._origScale;
+            grabEl.object3D.scale.set(s.x / 1.05, s.y / 1.05, s.z / 1.05);
+          }
+        }
         this.grabbed = null;
       }
     });
@@ -991,6 +1033,15 @@
     ];
     let activeRoomId = 'room1';
     let roomCounter  = 4;
+
+    // ── VR Edit Mode ──────────────────────────────────────────────
+    let vrEditMode = false;
+    function toggleVrEdit() {
+      vrEditMode = !vrEditMode;
+      const btn = document.getElementById('vrEditToggle');
+      btn.textContent = vrEditMode ? 'VR Edit Mode: ON' : 'VR Edit Mode: OFF';
+      btn.style.background = vrEditMode ? '#27ae60' : '#e67e22';
+    }
 
     // ── Walls data ────────────────────────────────────────────────
     let walls = [];
@@ -1389,6 +1440,7 @@
       }
 
       entity.setAttribute('id', modelId);
+      entity.setAttribute('class', 'vr-grabbable');
       entity.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
       entity.setAttribute('rotation', `0 ${rotationY} 0`);
       entity.setAttribute('scale', `${scale} ${scale} ${scale}`);
