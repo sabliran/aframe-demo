@@ -477,11 +477,12 @@
         </a-cursor>
       </a-camera>
 
-      <!-- Left controller — hold trigger to aim arc, release to teleport -->
+      <!-- Left controller — trigger: arc teleport | thumbstick L/R: snap turn -->
       <a-entity id="left-controller"
         oculus-touch-controls="hand: left"
         vive-controls="hand: left"
-        arc-teleporter>
+        arc-teleporter
+        snap-turn>
       </a-entity>
 
       <!-- Right controller — laser pointer, trigger fires click -->
@@ -607,6 +608,32 @@
       remove: function () {
         this.dots.forEach(d => d.parentNode && d.parentNode.removeChild(d));
         if (this.ring.parentNode) this.ring.parentNode.removeChild(this.ring);
+      }
+    });
+
+    // ── Snap turn component ───────────────────────────────────────
+    AFRAME.registerComponent('snap-turn', {
+      schema: {
+        angle:     { default: 30 },
+        threshold: { default: 0.7 }
+      },
+      init: function () {
+        this.rig     = document.getElementById('rig');
+        this.ready   = true; // debounce flag
+
+        this.el.addEventListener('thumbstickmoved', (evt) => {
+          const x = evt.detail.x;
+
+          if (Math.abs(x) > this.data.threshold && this.ready) {
+            this.ready = false;
+            const snap = THREE.MathUtils.degToRad(this.data.angle);
+            this.rig.object3D.rotation.y += x > 0 ? -snap : snap;
+          }
+
+          if (Math.abs(x) < 0.2) {
+            this.ready = true; // reset when stick returns to centre
+          }
+        });
       }
     });
 
