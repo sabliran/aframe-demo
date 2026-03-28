@@ -536,8 +536,15 @@
         this.ring.object3D.visible = false;
         scene.appendChild(this.ring);
 
-        this.el.addEventListener('triggerdown', () => { this.active = true; });
-        this.el.addEventListener('triggerup',   () => { this.doTeleport(); });
+        this.el.addEventListener('thumbstickmoved', (evt) => {
+          const y = evt.detail.y;
+          if (y < -0.7 && !this.active) {
+            this.active = true;
+          }
+          if (Math.abs(y) < 0.2 && this.active) {
+            this.doTeleport();
+          }
+        });
       },
 
       tick: function () {
