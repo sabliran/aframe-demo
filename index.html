@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>VR Room Viewer</title>
-  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <style>
     * { box-sizing: border-box; }
 
@@ -467,9 +467,9 @@
   </div>
 
   <a-scene>
-    <a-entity id="rig" position="0 0 0" room-collider>
+    <a-entity id="rig" position="0 0 0" wasd-controls room-collider>
 
-      <a-camera>
+      <a-camera look-controls wasd-controls="enabled: false">
         <!-- Desktop mouse cursor -->
         <a-cursor cursor="rayOrigin: mouse"
           raycaster="objects: [data-room]; far: 100"
@@ -477,10 +477,11 @@
         </a-cursor>
       </a-camera>
 
-      <!-- Left controller (no laser) -->
+      <!-- Left controller — hold trigger to aim arc, release to teleport -->
       <a-entity id="left-controller"
         oculus-touch-controls="hand: left"
-        vive-controls="hand: left">
+        vive-controls="hand: left"
+        arc-teleporter>
       </a-entity>
 
       <!-- Right controller — laser pointer, trigger fires click -->
@@ -501,6 +502,114 @@
   </a-scene>
 
   <script>
+    // ── Arc teleporter component ──────────────────────────────────
+    AFRAME.registerComponent('arc-teleporter', {
+      init: function () {
+        this.rig = document.getElementById('rig');
+        this.active = false;
+        this.landingPoint = null;
+        this.tmpQuat = new THREE.Quaternion();
+
+        const scene = this.el.sceneEl;
+
+        // Arc dots
+        this.dots = [];
+        for (let i = 0; i < 30; i++) {
+          const dot = document.createElement('a-sphere');
+          dot.setAttribute('radius', '0.04');
+          dot.setAttribute('color', '#4CC3D9');
+          dot.setAttribute('segments-height', '4');
+          dot.setAttribute('segments-width', '4');
+          dot.object3D.visible = false;
+          scene.appendChild(dot);
+          this.dots.push(dot);
+        }
+
+        // Landing ring
+        this.ring = document.createElement('a-ring');
+        this.ring.setAttribute('radius-inner', '0.2');
+        this.ring.setAttribute('radius-outer', '0.45');
+        this.ring.setAttribute('color', '#4CC3D9');
+        this.ring.setAttribute('rotation', '-90 0 0');
+        this.ring.setAttribute('material', 'side: double; opacity: 0.8');
+        this.ring.object3D.visible = false;
+        scene.appendChild(this.ring);
+
+        this.el.addEventListener('triggerdown', () => { this.active = true; });
+        this.el.addEventListener('triggerup',   () => { this.doTeleport(); });
+      },
+
+      tick: function () {
+        if (!this.active) return;
+
+        const origin = new THREE.Vector3();
+        const dir    = new THREE.Vector3(0, 0, -1);
+
+        this.el.object3D.getWorldPosition(origin);
+        this.el.object3D.getWorldQuaternion(this.tmpQuat);
+        dir.applyQuaternion(this.tmpQuat).normalize();
+
+        const speed   = 8;
+        const gravity = -9.8;
+        const dt      = 0.08;
+
+        const vx = dir.x * speed;
+        const vy = dir.y * speed;
+        const vz = dir.z * speed;
+
+        this.landingPoint = null;
+        let hitIndex = this.dots.length;
+        let prevY = origin.y;
+
+        for (let i = 0; i < this.dots.length; i++) {
+          const t = i * dt;
+          const x = origin.x + vx * t;
+          const y = origin.y + vy * t + 0.5 * gravity * t * t;
+          const z = origin.z + vz * t;
+
+          if (!this.landingPoint && y <= 0.01 && prevY > 0.01) {
+            this.landingPoint = new THREE.Vector3(
+              Math.max(-4.6, Math.min(4.6, x)),
+              0,
+              Math.max(-4.6, Math.min(4.6, z))
+            );
+            hitIndex = i;
+          }
+
+          if (i < hitIndex) {
+            this.dots[i].object3D.visible = true;
+            this.dots[i].object3D.position.set(x, y, z);
+          } else {
+            this.dots[i].object3D.visible = false;
+          }
+
+          prevY = y;
+        }
+
+        if (this.landingPoint) {
+          this.ring.object3D.visible = true;
+          this.ring.object3D.position.set(this.landingPoint.x, 0.01, this.landingPoint.z);
+        } else {
+          this.ring.object3D.visible = false;
+        }
+      },
+
+      doTeleport: function () {
+        if (this.landingPoint) {
+          this.rig.object3D.position.set(this.landingPoint.x, 0, this.landingPoint.z);
+        }
+        this.active = false;
+        this.landingPoint = null;
+        this.dots.forEach(d => { d.object3D.visible = false; });
+        this.ring.object3D.visible = false;
+      },
+
+      remove: function () {
+        this.dots.forEach(d => d.parentNode && d.parentNode.removeChild(d));
+        if (this.ring.parentNode) this.ring.parentNode.removeChild(this.ring);
+      }
+    });
+
     // ── Room collider component ───────────────────────────────────
     AFRAME.registerComponent('room-collider', {
       tick: function () {
