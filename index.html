@@ -467,10 +467,32 @@
   </div>
 
   <a-scene>
-    <a-camera position="0 1.6 0" room-collider>
-      <a-cursor cursor="rayOrigin: mouse" raycaster="objects: [data-room]; far: 100"
-        color="#4CC3D9" opacity="0.8"></a-cursor>
-    </a-camera>
+    <a-entity id="rig" position="0 0 0" room-collider>
+
+      <a-camera>
+        <!-- Desktop mouse cursor -->
+        <a-cursor cursor="rayOrigin: mouse"
+          raycaster="objects: [data-room]; far: 100"
+          color="#4CC3D9" opacity="0.8">
+        </a-cursor>
+      </a-camera>
+
+      <!-- Left controller (no laser) -->
+      <a-entity id="left-controller"
+        oculus-touch-controls="hand: left"
+        vive-controls="hand: left">
+      </a-entity>
+
+      <!-- Right controller — laser pointer, trigger fires click -->
+      <a-entity id="right-controller"
+        oculus-touch-controls="hand: right"
+        vive-controls="hand: right"
+        laser-controls="hand: right"
+        raycaster="objects: [data-room]; far: 10; showLine: true"
+        line="color: #4CC3D9; opacity: 0.8">
+      </a-entity>
+
+    </a-entity>
     <a-sky id="sky" color="#87CEEB"></a-sky>
     <a-entity id="rooms-container"></a-entity>
     <a-entity id="menu-panel" position="3 1.5 -2"></a-entity>
@@ -483,12 +505,11 @@
     AFRAME.registerComponent('room-collider', {
       tick: function () {
         const pos = this.el.object3D.position;
-        const limit = 4.6; // wall inner edge (~4.9) minus player radius
+        const limit = 4.6;
         if (pos.x >  limit) pos.x =  limit;
         if (pos.x < -limit) pos.x = -limit;
         if (pos.z >  limit) pos.z =  limit;
         if (pos.z < -limit) pos.z = -limit;
-        if (pos.y < 1.6)    pos.y =  1.6;  // keep above floor
       }
     });
 
