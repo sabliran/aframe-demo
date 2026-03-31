@@ -437,59 +437,113 @@
 
     .wall-delete-btn:hover { background: #c0392b !important; transform: none !important; }
 
-    /* ── Object Inspector ─────────────────────────────────────── */
-    #obj-inspector {
+    /* ── Scene Panel (Unity-style Hierarchy + Inspector) ─────────── */
+    #scene-panel {
       position: fixed;
-      bottom: 20px;
-      left: 20px;
-      background: rgba(30, 39, 46, 0.96);
-      border-radius: 10px;
-      color: white;
+      top: 0; left: 0;
+      width: 280px;
+      height: 100vh;
+      background: #1a2230;
+      color: #dce3ea;
       font-size: 13px;
-      z-index: 1500;
-      min-width: 360px;
-      box-shadow: 0 6px 24px rgba(0,0,0,0.5);
-      border: 1px solid rgba(76, 195, 217, 0.3);
-      user-select: none;
-    }
-    .insp-header {
+      z-index: 1600;
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 14px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      font-weight: bold;
-      color: #4CC3D9;
-      font-size: 12px;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
+      flex-direction: column;
+      box-shadow: 3px 0 18px rgba(0,0,0,0.5);
+      border-right: 1px solid rgba(76,195,217,0.15);
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+    }
+    #scene-panel.open { transform: translateX(0); }
+
+    .sp-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px; background: #141c28;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      font-weight: bold; font-size: 14px; color: #4CC3D9; flex-shrink: 0;
+    }
+    .sp-close {
+      background: none; border: none; color: #7f8c8d; cursor: pointer; font-size: 16px; line-height:1;
+    }
+    .sp-close:hover { color: #e74c3c; }
+
+    .sp-section-label {
+      font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: #5d6d7e; padding: 8px 14px 4px; flex-shrink: 0;
+    }
+
+    /* ── Hierarchy ── */
+    #scene-hierarchy {
+      flex: 1; overflow-y: auto; min-height: 80px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    #scene-hierarchy::-webkit-scrollbar { width: 4px; }
+    #scene-hierarchy::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+    .sh-room-header {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 10px; cursor: pointer; user-select: none;
+      font-size: 12px; font-weight: 600; color: #b0bec5;
+    }
+    .sh-room-header:hover { background: rgba(255,255,255,0.05); }
+    .sh-arrow { font-size: 9px; color: #5d6d7e; width: 10px; }
+    .sh-room-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+    .sh-count { margin-left: auto; font-size: 10px; color: #4a5568;
+      background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 8px; }
+
+    .sh-children { padding-left: 8px; }
+    .sh-item {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 10px 5px 18px; cursor: pointer;
+      font-size: 12px; color: #90a4ae; border-radius: 4px; margin: 1px 4px;
+    }
+    .sh-item:hover { background: rgba(255,255,255,0.06); color: #dce3ea; }
+    .sh-item:hover .sh-del { opacity: 1; }
+    .sh-item.sh-selected { background: rgba(76,195,217,0.18); color: #4CC3D9; }
+    .sh-icon { font-size: 11px; flex-shrink: 0; opacity: 0.7; }
+    .sh-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sh-del {
+      opacity: 0; background: none; border: none; color: #e74c3c;
+      cursor: pointer; font-size: 12px; padding: 1px 3px; border-radius: 3px; flex-shrink: 0;
+    }
+    .sh-del:hover { background: rgba(231,76,60,0.2); }
+    .sh-empty { padding: 4px 18px 4px 28px; font-size: 11px; color: #3d5166; font-style: italic; }
+
+    /* ── Inspector (inside panel) ── */
+    #obj-inspector { flex-shrink: 0; overflow-y: auto; max-height: 55vh; }
+    #obj-inspector::-webkit-scrollbar { width: 4px; }
+    #obj-inspector::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+
+    .insp-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 14px; border-bottom: 1px solid rgba(255,255,255,0.07);
+      font-weight: bold; color: #4CC3D9; font-size: 11px;
+      letter-spacing: 0.05em; text-transform: uppercase;
     }
     .insp-body { padding: 10px 14px; display: flex; flex-direction: column; gap: 7px; }
     .insp-row { display: flex; align-items: center; gap: 5px; }
-    .insp-row .insp-label {
-      width: 64px; font-size: 11px; color: #95a5a6; flex-shrink: 0;
-    }
+    .insp-row .insp-label { width: 64px; font-size: 11px; color: #95a5a6; flex-shrink: 0; }
     .insp-row .axis { font-size: 10px; color: #7f8c8d; width: 10px; text-align: right; flex-shrink: 0; }
     .insp-row input[type="number"] {
-      width: 76px; background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.15); border-radius: 4px;
-      color: #ecf0f1; padding: 4px 6px; font-size: 12px;
+      width: 66px; background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 4px;
+      color: #ecf0f1; padding: 4px 5px; font-size: 12px;
     }
     .insp-row input[type="number"]:focus { outline: none; border-color: #4CC3D9; background: rgba(76,195,217,0.08); }
     .insp-sep { height: 1px; background: rgba(255,255,255,0.07); margin: 2px 0; }
     #obj-deselect {
-      background: rgba(255,255,255,0.1); border: none; color: #bdc3c7;
-      width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 13px; line-height: 1;
+      background: rgba(255,255,255,0.08); border: none; color: #7f8c8d;
+      width: 20px; height: 20px; border-radius: 50%; cursor: pointer; font-size: 12px; line-height: 1;
     }
-    #obj-deselect:hover { background: rgba(231,76,60,0.5); color: white; }
+    #obj-deselect:hover { background: rgba(231,76,60,0.4); color: white; }
     .insp-modes {
-      display: flex; gap: 6px; padding: 8px 14px;
-      border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: flex; gap: 5px; padding: 7px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
     }
     .gizmo-mode-btn {
-      flex: 1; padding: 5px 0; font-size: 12px; font-weight: bold;
-      border: 1px solid rgba(255,255,255,0.15); border-radius: 5px; cursor: pointer;
-      background: rgba(255,255,255,0.07); color: #aaa;
+      flex: 1; padding: 5px 0; font-size: 11px; font-weight: bold;
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; cursor: pointer;
+      background: rgba(255,255,255,0.06); color: #7f8c8d;
       transition: background 0.15s, color 0.15s;
     }
     .gizmo-mode-btn:hover { background: rgba(76,195,217,0.2); color: #fff; }
@@ -501,7 +555,10 @@
   <div id="info-panel">
     <h3>VR Room Viewer</h3>
     <div style="display:flex;gap:6px;margin-top:8px;">
+      <button onclick="toggleScenePanel()" style="flex:1;background:#2C3E50;">&#x2630; Scene</button>
       <button onclick="toggleEditor()" style="flex:1;">Editor</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:6px;">
       <button id="undo-btn" onclick="History.undo()" disabled title="Undo (Ctrl+Z)"
         style="flex:1;background:#5d6d7e;">&#x21B6; Undo</button>
       <button id="redo-btn" onclick="History.redo()" disabled title="Redo (Ctrl+Y)"
@@ -509,77 +566,78 @@
     </div>
   </div>
 
-  <!-- Object Inspector — shown when an object is selected by clicking it -->
-  <div id="obj-inspector" style="display:none;">
-    <div class="insp-header">
-      <span id="obj-insp-name">Object</span>
-      <button id="obj-deselect" title="Deselect" onclick="deselectObject()">&#x2715;</button>
+  <!-- ── Scene Panel: Hierarchy + Inspector (Unity-style) ── -->
+  <div id="scene-panel">
+    <div class="sp-head">
+      <span>&#x2630; Scene</span>
+      <button class="sp-close" onclick="toggleScenePanel()" title="Close">&#x2715;</button>
     </div>
-    <div class="insp-modes">
-      <button class="gizmo-mode-btn active" data-mode="translate"
-        onclick="gizmo.setMode('translate')">&#x2194; Move</button>
-      <button class="gizmo-mode-btn" data-mode="rotate"
-        onclick="gizmo.setMode('rotate')">&#x21BB; Rotate</button>
-      <button class="gizmo-mode-btn" data-mode="scale"
-        onclick="gizmo.setMode('scale')">&#x2922; Scale</button>
+
+    <!-- Hierarchy tree -->
+    <div class="sp-section-label">Hierarchy</div>
+    <div id="scene-hierarchy"></div>
+
+    <!-- Inspector — shown when object selected -->
+    <div id="obj-inspector" style="display:none;">
+      <div class="sp-section-label" style="border-top:1px solid rgba(255,255,255,0.07);padding-top:10px;">Inspector</div>
+      <div class="insp-header">
+        <span id="obj-insp-name">Object</span>
+        <button id="obj-deselect" title="Deselect" onclick="deselectObject()">&#x2715;</button>
+      </div>
+      <div class="insp-modes">
+        <button class="gizmo-mode-btn active" data-mode="translate"
+          onclick="gizmo.setMode('translate')">&#x2194; Move</button>
+        <button class="gizmo-mode-btn" data-mode="rotate"
+          onclick="gizmo.setMode('rotate')">&#x21BB; Rotate</button>
+        <button class="gizmo-mode-btn" data-mode="scale"
+          onclick="gizmo.setMode('scale')">&#x2922; Scale</button>
+      </div>
+      <div class="insp-body">
+        <div class="insp-row">
+          <span class="insp-label">Position</span>
+          <span class="axis">X</span>
+          <input type="number" id="obj-px" step="0.1" oninput="applyInspectorPos()">
+          <span class="axis">Y</span>
+          <input type="number" id="obj-py" step="0.1" oninput="applyInspectorPos()">
+          <span class="axis">Z</span>
+          <input type="number" id="obj-pz" step="0.1" oninput="applyInspectorPos()">
+        </div>
+        <div class="insp-row">
+          <span class="insp-label">Rotation</span>
+          <span class="axis">X</span>
+          <input type="number" id="obj-rx" step="1" oninput="applyInspectorRot()">
+          <span class="axis">Y</span>
+          <input type="number" id="obj-ry" step="1" oninput="applyInspectorRot()">
+          <span class="axis">Z</span>
+          <input type="number" id="obj-rz" step="1" oninput="applyInspectorRot()">
+        </div>
+        <div class="insp-sep"></div>
+        <div id="insp-wall-dims" class="insp-row" style="display:none;">
+          <span class="insp-label">Dimensions</span>
+          <span class="axis">W</span>
+          <input type="number" id="obj-ww" step="0.1" min="0.1" oninput="applyInspectorDims()">
+          <span class="axis">H</span>
+          <input type="number" id="obj-wh" step="0.1" min="0.1" oninput="applyInspectorDims()">
+          <span class="axis">D</span>
+          <input type="number" id="obj-wd" step="0.05" min="0.05" oninput="applyInspectorDims()">
+        </div>
+        <div id="insp-scale-row" class="insp-row" style="display:none;">
+          <span class="insp-label">Scale</span>
+          <span class="axis">S</span>
+          <input type="number" id="obj-scale" step="0.05" min="0.01" oninput="applyInspectorScale()">
+        </div>
+        <div class="insp-sep"></div>
+        <div class="insp-row" style="justify-content:center;">
+          <button onclick="duplicateObject()"
+            style="flex:1;padding:6px 0;font-size:11px;font-weight:bold;
+                   background:rgba(76,195,217,0.15);border:1px solid rgba(76,195,217,0.35);
+                   border-radius:5px;color:#4CC3D9;cursor:pointer;">
+            &#x2398; Duplicate
+          </button>
+        </div>
+      </div>
     </div>
-    <div class="insp-body">
 
-      <!-- Position -->
-      <div class="insp-row">
-        <span class="insp-label">Position</span>
-        <span class="axis">X</span>
-        <input type="number" id="obj-px" step="0.1" oninput="applyInspectorPos()">
-        <span class="axis">Y</span>
-        <input type="number" id="obj-py" step="0.1" oninput="applyInspectorPos()">
-        <span class="axis">Z</span>
-        <input type="number" id="obj-pz" step="0.1" oninput="applyInspectorPos()">
-      </div>
-
-      <!-- Rotation -->
-      <div class="insp-row">
-        <span class="insp-label">Rotation</span>
-        <span class="axis">X</span>
-        <input type="number" id="obj-rx" step="1" oninput="applyInspectorRot()">
-        <span class="axis">Y</span>
-        <input type="number" id="obj-ry" step="1" oninput="applyInspectorRot()">
-        <span class="axis">Z</span>
-        <input type="number" id="obj-rz" step="1" oninput="applyInspectorRot()">
-      </div>
-
-      <div class="insp-sep"></div>
-
-      <!-- Wall dimensions (shown for walls) -->
-      <div id="insp-wall-dims" class="insp-row" style="display:none;">
-        <span class="insp-label">Dimensions</span>
-        <span class="axis">W</span>
-        <input type="number" id="obj-ww" step="0.1" min="0.1" oninput="applyInspectorDims()">
-        <span class="axis">H</span>
-        <input type="number" id="obj-wh" step="0.1" min="0.1" oninput="applyInspectorDims()">
-        <span class="axis">D</span>
-        <input type="number" id="obj-wd" step="0.05" min="0.05" oninput="applyInspectorDims()">
-      </div>
-
-      <!-- Scale (shown for models) -->
-      <div id="insp-scale-row" class="insp-row" style="display:none;">
-        <span class="insp-label">Scale</span>
-        <span class="axis">S</span>
-        <input type="number" id="obj-scale" step="0.05" min="0.01" oninput="applyInspectorScale()">
-      </div>
-
-      <div class="insp-sep"></div>
-
-      <!-- Duplicate -->
-      <div class="insp-row" style="justify-content:center;">
-        <button onclick="duplicateObject()"
-          style="flex:1;padding:7px 0;font-size:12px;font-weight:bold;
-                 background:rgba(76,195,217,0.18);border:1px solid rgba(76,195,217,0.4);
-                 border-radius:6px;color:#4CC3D9;cursor:pointer;">
-          &#x2398; Duplicate
-        </button>
-      </div>
-
-    </div>
   </div>
 
   <div id="editor-panel">
@@ -1476,6 +1534,7 @@
         undo() { _removeWallFromScene(saved.id); },
         redo() { _addWallToScene(JSON.parse(JSON.stringify(saved))); }
       });
+      renderSceneHierarchy();
       showStatus('Wall added.', false);
     }
 
@@ -1489,6 +1548,7 @@
         redo() { _removeWallFromScene(saved.id); }
       });
       showStatus('Wall removed.', false);
+      renderSceneHierarchy();
     }
 
     function renderWallsList() {
@@ -1683,6 +1743,7 @@
 
       loadedModels.push({ id: modelId, name: fileName, room });
       renderModelsList();
+      renderSceneHierarchy();
     }
 
     function removeModel(modelId) {
@@ -1690,6 +1751,7 @@
       if (el) el.remove();
       loadedModels = loadedModels.filter(m => m.id !== modelId);
       renderModelsList();
+      renderSceneHierarchy();
       showStatus('Model removed.', false);
     }
 
@@ -2153,6 +2215,7 @@
       if (gizmo) gizmo.attach(el);
       refreshInspector();
       document.getElementById('obj-inspector').style.display = 'block';
+      renderSceneHierarchy();
     }
 
     function deselectObject(hide) {
@@ -2167,6 +2230,7 @@
       selectedType = null;
       if (gizmo) gizmo.detach();
       if (hide) document.getElementById('obj-inspector').style.display = 'none';
+      renderSceneHierarchy();
     }
 
     function refreshInspector() {
@@ -2400,10 +2464,89 @@
       }
     }
 
+    // ── Scene Panel — hierarchy + inspector ──────────────────────
+    const sceneExpanded = {};
+
+    function toggleScenePanel() {
+      document.getElementById('scene-panel').classList.toggle('open');
+    }
+
+    function toggleRoomExpand(roomId) {
+      sceneExpanded[roomId] = sceneExpanded[roomId] === false ? true : false;
+      renderSceneHierarchy();
+    }
+
+    function renderSceneHierarchy() {
+      const container = document.getElementById('scene-hierarchy');
+      if (!container) return;
+      container.innerHTML = '';
+
+      rooms.forEach(room => {
+        const roomWalls  = walls.filter(w => w.room === room.id);
+        const roomModels = loadedModels.filter(m => m.room === room.id);
+        const total      = roomWalls.length + roomModels.length;
+        const expanded   = sceneExpanded[room.id] !== false;
+
+        const roomDiv = document.createElement('div');
+
+        const header = document.createElement('div');
+        header.className = 'sh-room-header';
+        header.innerHTML = `
+          <span class="sh-arrow">${expanded ? '&#x25BC;' : '&#x25B6;'}</span>
+          <span class="sh-room-dot" style="background:${room.color}"></span>
+          <span style="flex:1">${room.name}</span>
+          <span class="sh-count">${total}</span>`;
+        header.addEventListener('click', () => toggleRoomExpand(room.id));
+        roomDiv.appendChild(header);
+
+        if (expanded) {
+          const children = document.createElement('div');
+          children.className = 'sh-children';
+
+          if (total === 0) {
+            const e = document.createElement('div');
+            e.className = 'sh-empty';
+            e.textContent = 'empty';
+            children.appendChild(e);
+          }
+
+          roomWalls.forEach(w => {
+            const el   = document.getElementById(w.id);
+            const isSel = selectedEl && selectedEl.id === w.id;
+            const item = document.createElement('div');
+            item.className = 'sh-item' + (isSel ? ' sh-selected' : '');
+            item.innerHTML = `
+              <span class="sh-icon">&#x2588;</span>
+              <span class="sh-item-name">Wall ${w.width}&#xD7;${w.height}m</span>
+              <button class="sh-del" title="Delete" onclick="removeWall('${w.id}');event.stopPropagation()">&#x2715;</button>`;
+            item.addEventListener('click', () => { if (el) selectObject(el, 'wall'); });
+            children.appendChild(item);
+          });
+
+          roomModels.forEach(m => {
+            const el   = document.getElementById(m.id);
+            const isSel = selectedEl && selectedEl.id === m.id;
+            const item = document.createElement('div');
+            item.className = 'sh-item' + (isSel ? ' sh-selected' : '');
+            item.innerHTML = `
+              <span class="sh-icon">&#x25C6;</span>
+              <span class="sh-item-name">${m.name}</span>
+              <button class="sh-del" title="Delete" onclick="removeModel('${m.id}');event.stopPropagation()">&#x2715;</button>`;
+            item.addEventListener('click', () => { if (el) selectObject(el, 'model'); });
+            children.appendChild(item);
+          });
+
+          roomDiv.appendChild(children);
+        }
+        container.appendChild(roomDiv);
+      });
+    }
+
     // ── Init ──────────────────────────────────────────────────────
     document.querySelector('a-scene').addEventListener('loaded', () => {
       renderScene();
       renderRoomsList();
+      renderSceneHierarchy();
       renderRoomSelect();
       renderWallRoomSelect();
       renderWallsList();
