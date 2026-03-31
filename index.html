@@ -500,7 +500,13 @@
 
   <div id="info-panel">
     <h3>VR Room Viewer</h3>
-    <button onclick="toggleEditor()">Editor</button>
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <button onclick="toggleEditor()" style="flex:1;">Editor</button>
+      <button id="undo-btn" onclick="History.undo()" disabled title="Undo (Ctrl+Z)"
+        style="flex:1;background:#5d6d7e;">&#x21B6; Undo</button>
+      <button id="redo-btn" onclick="History.redo()" disabled title="Redo (Ctrl+Y)"
+        style="flex:1;background:#5d6d7e;">&#x21B7; Redo</button>
+    </div>
   </div>
 
   <!-- Object Inspector — shown when an object is selected by clicking it -->
@@ -514,6 +520,8 @@
         onclick="gizmo.setMode('translate')">&#x2194; Move</button>
       <button class="gizmo-mode-btn" data-mode="rotate"
         onclick="gizmo.setMode('rotate')">&#x21BB; Rotate</button>
+      <button class="gizmo-mode-btn" data-mode="scale"
+        onclick="gizmo.setMode('scale')">&#x2922; Scale</button>
     </div>
     <div class="insp-body">
 
@@ -557,6 +565,18 @@
         <span class="insp-label">Scale</span>
         <span class="axis">S</span>
         <input type="number" id="obj-scale" step="0.05" min="0.01" oninput="applyInspectorScale()">
+      </div>
+
+      <div class="insp-sep"></div>
+
+      <!-- Duplicate -->
+      <div class="insp-row" style="justify-content:center;">
+        <button onclick="duplicateObject()"
+          style="flex:1;padding:7px 0;font-size:12px;font-weight:bold;
+                 background:rgba(76,195,217,0.18);border:1px solid rgba(76,195,217,0.4);
+                 border-radius:6px;color:#4CC3D9;cursor:pointer;">
+          &#x2398; Duplicate
+        </button>
       </div>
 
     </div>
@@ -705,7 +725,7 @@
   <a-scene>
     <a-entity id="rig" position="0 0 0" room-collider fly-camera>
 
-      <a-camera>
+      <a-camera look-controls="enabled: false" wasd-controls="enabled: false">
         <!-- Desktop mouse cursor -->
         <a-cursor cursor="rayOrigin: mouse"
           raycaster="objects: [data-room]; far: 100"
@@ -1413,6 +1433,32 @@
       if (rooms.find(r => r.id === cur)) sel.value = cur;
     }
 
+    function _addWallToScene(wall) {
+      walls.push(wall);
+      const roomEl = document.getElementById(wall.room);
+      if (roomEl) {
+        const el = document.createElement('a-box');
+        el.setAttribute('id',       wall.id);
+        el.setAttribute('class',    'vr-wall');
+        el.setAttribute('width',    wall.width);
+        el.setAttribute('height',   wall.height);
+        el.setAttribute('depth',    wall.depth);
+        el.setAttribute('color',    wall.color);
+        el.setAttribute('position', `${wall.position.x} ${wall.position.y} ${wall.position.z}`);
+        el.setAttribute('rotation', `0 ${wall.rotY} 0`);
+        roomEl.appendChild(el);
+      }
+      renderWallsList();
+    }
+
+    function _removeWallFromScene(id) {
+      const el = document.getElementById(id);
+      if (el && selectedEl === el) deselectObject();
+      if (el) el.remove();
+      walls = walls.filter(w => w.id !== id);
+      renderWallsList();
+    }
+
     function addWall() {
       const room   = document.getElementById('wallRoom').value;
       const color  = document.getElementById('wallColor').value;
@@ -1421,37 +1467,27 @@
       const posX   = parseFloat(document.getElementById('wallPosX').value)   || 0;
       const posZ   = parseFloat(document.getElementById('wallPosZ').value)   || -2;
       const rotY   = parseFloat(document.getElementById('wallRotY').value)   || 0;
-      const depth  = 0.2;
       const id     = `vr-wall-${wallCounter++}`;
-
-      const wall = { id, room, color, width, height, depth,
-                     position: { x: posX, y: height / 2, z: posZ }, rotY };
-      walls.push(wall);
-
-      // Create entity parented to room
-      const roomEl = document.getElementById(room);
-      if (roomEl) {
-        const el = document.createElement('a-box');
-        el.setAttribute('id', id);
-        el.setAttribute('class', 'vr-wall');
-        el.setAttribute('width',    width);
-        el.setAttribute('height',   height);
-        el.setAttribute('depth',    depth);
-        el.setAttribute('color',    color);
-        el.setAttribute('position', `${posX} ${height/2} ${posZ}`);
-        el.setAttribute('rotation', `0 ${rotY} 0`);
-        roomEl.appendChild(el);
-      }
-
-      renderWallsList();
+      const wall   = { id, room, color, width, height, depth: 0.2,
+                       position: { x: posX, y: height / 2, z: posZ }, rotY };
+      _addWallToScene(wall);
+      const saved = JSON.parse(JSON.stringify(wall));
+      History.push({
+        undo() { _removeWallFromScene(saved.id); },
+        redo() { _addWallToScene(JSON.parse(JSON.stringify(saved))); }
+      });
       showStatus('Wall added.', false);
     }
 
     function removeWall(id) {
-      walls = walls.filter(w => w.id !== id);
-      const el = document.getElementById(id);
-      if (el) el.remove();
-      renderWallsList();
+      const wall = walls.find(w => w.id === id);
+      if (!wall) return;
+      const saved = JSON.parse(JSON.stringify(wall));
+      _removeWallFromScene(id);
+      History.push({
+        undo() { _addWallToScene(JSON.parse(JSON.stringify(saved))); },
+        redo() { _removeWallFromScene(saved.id); }
+      });
       showStatus('Wall removed.', false);
     }
 
@@ -1682,6 +1718,88 @@
       setTimeout(() => statusMessage.classList.remove('active'), 3000);
     }
 
+    // ── Undo / Redo history ───────────────────────────────────────
+    const History = {
+      _undo: [], _redo: [], MAX: 60,
+      push(cmd) {
+        this._undo.push(cmd);
+        if (this._undo.length > this.MAX) this._undo.shift();
+        this._redo = [];
+        this._ui();
+      },
+      undo() {
+        if (!this._undo.length) return;
+        const cmd = this._undo.pop();
+        cmd.undo();
+        this._redo.push(cmd);
+        this._ui();
+      },
+      redo() {
+        if (!this._redo.length) return;
+        const cmd = this._redo.pop();
+        cmd.redo();
+        this._undo.push(cmd);
+        this._ui();
+      },
+      _ui() {
+        const u = document.getElementById('undo-btn');
+        const r = document.getElementById('redo-btn');
+        if (u) u.disabled = !this._undo.length;
+        if (r) r.disabled = !this._redo.length;
+      }
+    };
+
+    // Snapshot the transform + dims of an entity
+    function captureState(el, type) {
+      const p = el.object3D.position, r = el.object3D.rotation, s = el.object3D.scale;
+      const st = { px: p.x, py: p.y, pz: p.z, rx: r.x, ry: r.y, rz: r.z, sx: s.x, sy: s.y, sz: s.z };
+      if (type === 'wall') {
+        const w = walls.find(w => w.id === el.id);
+        if (w) { st.width = w.width; st.height = w.height; st.depth = w.depth; }
+      }
+      return st;
+    }
+
+    // Apply a snapshot back to an entity
+    function applyState(elId, type, st) {
+      const el = document.getElementById(elId);
+      if (!el) return;
+      el.object3D.position.set(st.px, st.py, st.pz);
+      el.object3D.rotation.set(st.rx, st.ry, st.rz);
+      el.object3D.scale.set(st.sx, st.sy, st.sz);
+      if (type === 'wall') {
+        const w = walls.find(w => w.id === elId);
+        if (w) {
+          w.position.x = st.px; w.position.y = st.py; w.position.z = st.pz;
+          w.rotY = THREE.MathUtils.radToDeg(st.ry);
+          if (st.width  !== undefined) { w.width  = st.width;  el.setAttribute('width',  st.width);  }
+          if (st.height !== undefined) { w.height = st.height; el.setAttribute('height', st.height); }
+          if (st.depth  !== undefined) { w.depth  = st.depth;  el.setAttribute('depth',  st.depth);  }
+        }
+      }
+      if (selectedEl && selectedEl.id === elId) refreshInspector();
+      if (gizmo && gizmo.target && gizmo.target.id === elId) gizmo.update();
+    }
+
+    // Inspector change debounce — captures before/after for each typing session
+    let _inspBefore = null, _inspTimer = null;
+    function histInspectorChange() {
+      if (!selectedEl) return;
+      if (!_inspBefore || _inspBefore.id !== selectedEl.id) {
+        _inspBefore = { id: selectedEl.id, type: selectedType, st: captureState(selectedEl, selectedType) };
+      }
+      clearTimeout(_inspTimer);
+      _inspTimer = setTimeout(() => {
+        const before = _inspBefore;
+        const after  = captureState(selectedEl, selectedType);
+        History.push({
+          undo() { applyState(before.id, before.type, before.st); },
+          redo() { applyState(before.id, before.type, after); }
+        });
+        _inspBefore = null;
+      }, 700);
+    }
+
     // ── Transform Gizmo ───────────────────────────────────────────
     const GC = { x: 0xe74c3c, y: 0x2ecc71, z: 0x3498db };  // base colors
     const GH = { x: 0xffaa00, y: 0x00ff88, z: 0x44aaff };  // hover/active colors
@@ -1700,11 +1818,13 @@
         this.group   = new THREE.Group();
         this._tGroup = new THREE.Group();
         this._rGroup = new THREE.Group();
-        this.group.add(this._tGroup, this._rGroup);
+        this._sGroup = new THREE.Group();
+        this.group.add(this._tGroup, this._rGroup, this._sGroup);
         this.group.visible = false;
 
         this._buildArrows();
         this._buildRings();
+        this._buildScale();
 
         // White center sphere
         const cSph = new THREE.Mesh(
@@ -1716,7 +1836,7 @@
       }
 
       _mat(axis) {
-        return new THREE.MeshBasicMaterial({ color: GC[axis], depthTest: false, transparent: true, opacity: 0.92 });
+        return new THREE.MeshBasicMaterial({ color: GC[axis] || 0xffffff, depthTest: false, transparent: true, opacity: 0.92 });
       }
 
       _buildArrows() {
@@ -1738,6 +1858,38 @@
             this._handles.push({ mesh: m, axis, type: 'translate' });
           });
         });
+      }
+
+      _buildScale() {
+        const shaft = new THREE.CylinderGeometry(0.022, 0.022, 0.52, 8);
+        const box   = new THREE.BoxGeometry(0.11, 0.11, 0.11);
+        const cfg   = [
+          { axis: 'x', sP:[0.26,0,0], sR:[0,0,-Math.PI/2], bP:[0.61,0,0] },
+          { axis: 'y', sP:[0,0.26,0], sR:[0,0,0],           bP:[0,0.61,0] },
+          { axis: 'z', sP:[0,0,0.26], sR:[Math.PI/2,0,0],   bP:[0,0,0.61] },
+        ];
+        cfg.forEach(({ axis, sP, sR, bP }) => {
+          const sm = new THREE.Mesh(shaft.clone(), this._mat(axis));
+          sm.position.set(...sP); sm.rotation.set(...sR);
+          sm.renderOrder = 999; sm.userData = { axis, type: 'scale' };
+
+          const bm = new THREE.Mesh(box.clone(), this._mat(axis));
+          bm.position.set(...bP);
+          bm.renderOrder = 999; bm.userData = { axis, type: 'scale' };
+
+          this._sGroup.add(sm, bm);
+          this._handles.push({ mesh: sm, axis, type: 'scale' });
+          this._handles.push({ mesh: bm, axis, type: 'scale' });
+        });
+
+        // Centre white box for uniform scale
+        const cm = new THREE.Mesh(
+          new THREE.BoxGeometry(0.13, 0.13, 0.13),
+          new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, opacity: 0.9, transparent: true })
+        );
+        cm.renderOrder = 999; cm.userData = { axis: 'xyz', type: 'scale' };
+        this._sGroup.add(cm);
+        this._handles.push({ mesh: cm, axis: 'xyz', type: 'scale' });
       }
 
       _buildRings() {
@@ -1788,6 +1940,7 @@
       _applyMode() {
         this._tGroup.visible = this.mode === 'translate';
         this._rGroup.visible = this.mode === 'rotate';
+        this._sGroup.visible = this.mode === 'scale';
       }
 
       update() {
@@ -1819,7 +1972,7 @@
         const b = lineDir.dot(ray.direction);
         const denom = 1 - b * b;
         if (Math.abs(denom) < 1e-10) return 0;
-        return (b * ray.direction.dot(w) - lineDir.dot(w)) / denom;
+        return (lineDir.dot(w) - b * ray.direction.dot(w)) / denom;
       }
 
       // Ray–plane intersection point
@@ -1848,11 +2001,13 @@
         if (!hits.length) return false;
 
         this._hitStarted = true;
+        // Snapshot before-state for history
+        this._histBefore = selectedEl ? { id: selectedEl.id, type: selectedType, st: captureState(selectedEl, selectedType) } : null;
         const { axis, type } = hits[0].object.userData;
 
         // Highlight active axis handles
         this._handles.forEach(h => {
-          h.mesh.material.color.setHex(h.axis === axis && h.type === type ? GH[axis] : GC[h.axis]);
+          h.mesh.material.color.setHex(h.axis === axis && h.type === type ? (GH[axis] || 0xffff00) : (GC[h.axis] || 0xffffff));
         });
 
         const wp = new THREE.Vector3();
@@ -1865,7 +2020,7 @@
             startWorld: wp.clone(),
             startT: this._lineT(this._rc.ray, wp, av),
           };
-        } else {
+        } else if (type === 'rotate') {
           const hitPt = this._rayPlane(this._rc.ray, av, wp);
           if (!hitPt) return true;
           const toHit = new THREE.Vector3().subVectors(hitPt, wp).normalize();
@@ -1873,6 +2028,14 @@
             type, axis, av, center: wp.clone(),
             startAngle: this._angleOnPlane(axis, toHit),
             startRot: { x: this.target.object3D.rotation.x, y: this.target.object3D.rotation.y, z: this.target.object3D.rotation.z },
+          };
+        } else { // scale
+          const wallData = selectedType === 'wall' ? walls.find(w => w.id === this.target.id) : null;
+          this._drag = {
+            type, axis,
+            startNDC: this._ndc(e),
+            startScale: this.target.object3D.scale.clone(),
+            startDim: wallData ? { x: wallData.width, y: wallData.height, z: wallData.depth } : null,
           };
         }
         return true;
@@ -1903,7 +2066,7 @@
             if (w) { w.position.x = p.x; w.position.y = p.y; w.position.z = p.z; }
           }
 
-        } else {
+        } else if (d.type === 'rotate') {
           const hitPt = this._rayPlane(this._rc.ray, d.av, d.center);
           if (!hitPt) return;
           const toHit = new THREE.Vector3().subVectors(hitPt, d.center).normalize();
@@ -1917,6 +2080,26 @@
             const w = walls.find(w => w.id === this.target.id);
             if (w) w.rotY = THREE.MathUtils.radToDeg(rot.y);
           }
+
+        } else { // scale — vertical drag: up = bigger, down = smaller
+          const dy     = ndc.y - d.startNDC.y;
+          const factor = Math.max(0.02, 1 + dy * 2.5);
+          const axes   = d.axis === 'xyz' ? ['x','y','z'] : [d.axis];
+
+          if (d.startDim) { // wall: scale via geometry attributes
+            const w = walls.find(w => w.id === this.target.id);
+            if (w) {
+              if (axes.includes('x')) { w.width  = Math.max(0.1,  d.startDim.x * factor); this.target.setAttribute('width',  w.width);  }
+              if (axes.includes('y')) { w.height = Math.max(0.1,  d.startDim.y * factor); this.target.setAttribute('height', w.height); }
+              if (axes.includes('z')) { w.depth  = Math.max(0.05, d.startDim.z * factor); this.target.setAttribute('depth',  w.depth);  }
+            }
+          } else { // model: use object3D scale
+            const s = d.startScale.clone();
+            if (axes.includes('x')) s.x = Math.max(0.01, d.startScale.x * factor);
+            if (axes.includes('y')) s.y = Math.max(0.01, d.startScale.y * factor);
+            if (axes.includes('z')) s.z = Math.max(0.01, d.startScale.z * factor);
+            this.target.object3D.scale.copy(s);
+          }
         }
 
         this.update();
@@ -1925,7 +2108,21 @@
 
       onMouseUp() {
         if (!this._drag) return;
-        this._handles.forEach(h => h.mesh.material.color.setHex(GC[h.axis]));
+        this._handles.forEach(h => h.mesh.material.color.setHex(GC[h.axis] || 0xffffff));
+        // Push history if transform changed
+        if (this._histBefore && this.target) {
+          const b = this._histBefore;
+          const after = captureState(this.target, selectedType);
+          const changed = ['px','py','pz','rx','ry','rz','sx','sy','sz','width','height','depth']
+            .some(k => Math.abs((b.st[k] || 0) - (after[k] || 0)) > 1e-5);
+          if (changed) {
+            History.push({
+              undo() { applyState(b.id, b.type, b.st); },
+              redo() { applyState(b.id, b.type, after); }
+            });
+          }
+          this._histBefore = null;
+        }
         this._drag = null;
       }
     }
@@ -2007,6 +2204,7 @@
     // ── Inspector input handlers ───────────────────────────────────
     function applyInspectorPos() {
       if (!selectedEl) return;
+      histInspectorChange();
       const x = parseFloat(document.getElementById('obj-px').value) || 0;
       const y = parseFloat(document.getElementById('obj-py').value) || 0;
       const z = parseFloat(document.getElementById('obj-pz').value) || 0;
@@ -2019,6 +2217,7 @@
 
     function applyInspectorRot() {
       if (!selectedEl) return;
+      histInspectorChange();
       const rx = parseFloat(document.getElementById('obj-rx').value) || 0;
       const ry = parseFloat(document.getElementById('obj-ry').value) || 0;
       const rz = parseFloat(document.getElementById('obj-rz').value) || 0;
@@ -2035,6 +2234,7 @@
 
     function applyInspectorDims() {
       if (!selectedEl || selectedType !== 'wall') return;
+      histInspectorChange();
       const w = walls.find(w => w.id === selectedEl.id);
       if (!w) return;
       const width  = Math.max(0.1, parseFloat(document.getElementById('obj-ww').value) || 0.1);
@@ -2048,6 +2248,7 @@
 
     function applyInspectorScale() {
       if (!selectedEl || selectedType !== 'model') return;
+      histInspectorChange();
       const s = Math.max(0.01, parseFloat(document.getElementById('obj-scale').value) || 0.01);
       selectedEl.object3D.scale.set(s, s, s);
     }
@@ -2114,6 +2315,91 @@
       });
     }
 
+    // ── Duplicate selected object ─────────────────────────────────
+    function duplicateObject() {
+      if (!selectedEl || !selectedType) return;
+
+      if (selectedType === 'wall') {
+        const w = walls.find(w => w.id === selectedEl.id);
+        if (!w) return;
+
+        // Offset along wall's own local +X axis (width direction) with a small gap
+        const gap    = 0.12;
+        const offset = new THREE.Vector3(w.width + gap, 0, 0);
+        const wQuat  = new THREE.Quaternion();
+        selectedEl.object3D.getWorldQuaternion(wQuat);
+        offset.applyQuaternion(wQuat);
+
+        const newPos = {
+          x: w.position.x + offset.x,
+          y: w.position.y + offset.y,
+          z: w.position.z + offset.z,
+        };
+        const rotY = THREE.MathUtils.radToDeg(selectedEl.object3D.rotation.y);
+        const id   = `vr-wall-${wallCounter++}`;
+
+        const newWall = { id, room: w.room, color: w.color,
+          width: w.width, height: w.height, depth: w.depth,
+          position: { ...newPos }, rotY };
+        _addWallToScene(newWall);
+        const saved = JSON.parse(JSON.stringify(newWall));
+        History.push({
+          undo() { _removeWallFromScene(saved.id); },
+          redo() { _addWallToScene(JSON.parse(JSON.stringify(saved))); }
+        });
+        const dupEl = document.getElementById(id);
+        if (dupEl) setTimeout(() => selectObject(dupEl, 'wall'), 80);
+        showStatus('Wall duplicated.', false);
+
+      } else if (selectedType === 'model') {
+        const m = loadedModels.find(m => m.id === selectedEl.id);
+        if (!m) return;
+
+        // Compute bounding box so we can place copy flush + gap
+        const bbox = new THREE.Box3().setFromObject(selectedEl.object3D);
+        const size = new THREE.Vector3();
+        bbox.getSize(size);
+        const gap = 0.12;
+        const dx  = (size.x > 0 ? size.x : 1) + gap;
+
+        const pos = selectedEl.object3D.position;
+        const rot = selectedEl.object3D.rotation;
+        const sc  = selectedEl.object3D.scale;
+
+        // Clone the element — preserves gltf-model / obj-model src attributes
+        const newEl = selectedEl.cloneNode(true);
+        const newId = `model-${modelCounter++}`;
+        newEl.setAttribute('id',    newId);
+        newEl.setAttribute('class', 'vr-grabbable');
+        newEl.setAttribute('position', `${pos.x + dx} ${pos.y} ${pos.z}`);
+        newEl.setAttribute('rotation', `${THREE.MathUtils.radToDeg(rot.x)} ${THREE.MathUtils.radToDeg(rot.y)} ${THREE.MathUtils.radToDeg(rot.z)}`);
+        newEl.setAttribute('scale',    `${sc.x} ${sc.y} ${sc.z}`);
+
+        const container = document.getElementById(`${m.room}-models`);
+        if (container) {
+          container.appendChild(newEl);
+          const entry = { id: newId, name: m.name + ' (copy)', room: m.room };
+          loadedModels.push(entry);
+          renderModelsList();
+          History.push({
+            undo() {
+              const el2 = document.getElementById(newId);
+              if (el2 && selectedEl === el2) deselectObject();
+              if (el2) el2.remove();
+              loadedModels = loadedModels.filter(x => x.id !== newId);
+              renderModelsList();
+            },
+            redo() {
+              const c2 = document.getElementById(`${entry.room}-models`);
+              if (c2) { const clone = newEl.cloneNode(true); c2.appendChild(clone); loadedModels.push({ ...entry }); renderModelsList(); }
+            }
+          });
+          setTimeout(() => selectObject(newEl, 'model'), 80);
+        }
+        showStatus('Model duplicated.', false);
+      }
+    }
+
     // ── Init ──────────────────────────────────────────────────────
     document.querySelector('a-scene').addEventListener('loaded', () => {
       renderScene();
@@ -2125,6 +2411,17 @@
       const scene = document.querySelector('a-scene');
       gizmo = new TransformGizmo();
       gizmo.init(scene.object3D, scene.camera, scene.canvas);
+
+      // Keyboard shortcuts for undo / redo
+      window.addEventListener('keydown', e => {
+        const tag = document.activeElement.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (e.ctrlKey || e.metaKey) {
+          if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); History.undo(); }
+          if (e.key === 'y' || e.key === 'Y') { e.preventDefault(); History.redo(); }
+          if ((e.key === 'z' || e.key === 'Z') && e.shiftKey) { e.preventDefault(); History.redo(); }
+        }
+      });
 
       initObjectPicker();
 
