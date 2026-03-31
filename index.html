@@ -436,6 +436,64 @@
     }
 
     .wall-delete-btn:hover { background: #c0392b !important; transform: none !important; }
+
+    /* ── Object Inspector ─────────────────────────────────────── */
+    #obj-inspector {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(30, 39, 46, 0.96);
+      border-radius: 10px;
+      color: white;
+      font-size: 13px;
+      z-index: 1500;
+      min-width: 360px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+      border: 1px solid rgba(76, 195, 217, 0.3);
+      user-select: none;
+    }
+    .insp-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      font-weight: bold;
+      color: #4CC3D9;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .insp-body { padding: 10px 14px; display: flex; flex-direction: column; gap: 7px; }
+    .insp-row { display: flex; align-items: center; gap: 5px; }
+    .insp-row .insp-label {
+      width: 64px; font-size: 11px; color: #95a5a6; flex-shrink: 0;
+    }
+    .insp-row .axis { font-size: 10px; color: #7f8c8d; width: 10px; text-align: right; flex-shrink: 0; }
+    .insp-row input[type="number"] {
+      width: 76px; background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15); border-radius: 4px;
+      color: #ecf0f1; padding: 4px 6px; font-size: 12px;
+    }
+    .insp-row input[type="number"]:focus { outline: none; border-color: #4CC3D9; background: rgba(76,195,217,0.08); }
+    .insp-sep { height: 1px; background: rgba(255,255,255,0.07); margin: 2px 0; }
+    #obj-deselect {
+      background: rgba(255,255,255,0.1); border: none; color: #bdc3c7;
+      width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 13px; line-height: 1;
+    }
+    #obj-deselect:hover { background: rgba(231,76,60,0.5); color: white; }
+    .insp-modes {
+      display: flex; gap: 6px; padding: 8px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .gizmo-mode-btn {
+      flex: 1; padding: 5px 0; font-size: 12px; font-weight: bold;
+      border: 1px solid rgba(255,255,255,0.15); border-radius: 5px; cursor: pointer;
+      background: rgba(255,255,255,0.07); color: #aaa;
+      transition: background 0.15s, color 0.15s;
+    }
+    .gizmo-mode-btn:hover { background: rgba(76,195,217,0.2); color: #fff; }
+    .gizmo-mode-btn.active { background: #4CC3D9; color: #fff; border-color: #4CC3D9; }
   </style>
 </head>
 <body>
@@ -443,6 +501,65 @@
   <div id="info-panel">
     <h3>VR Room Viewer</h3>
     <button onclick="toggleEditor()">Editor</button>
+  </div>
+
+  <!-- Object Inspector — shown when an object is selected by clicking it -->
+  <div id="obj-inspector" style="display:none;">
+    <div class="insp-header">
+      <span id="obj-insp-name">Object</span>
+      <button id="obj-deselect" title="Deselect" onclick="deselectObject()">&#x2715;</button>
+    </div>
+    <div class="insp-modes">
+      <button class="gizmo-mode-btn active" data-mode="translate"
+        onclick="gizmo.setMode('translate')">&#x2194; Move</button>
+      <button class="gizmo-mode-btn" data-mode="rotate"
+        onclick="gizmo.setMode('rotate')">&#x21BB; Rotate</button>
+    </div>
+    <div class="insp-body">
+
+      <!-- Position -->
+      <div class="insp-row">
+        <span class="insp-label">Position</span>
+        <span class="axis">X</span>
+        <input type="number" id="obj-px" step="0.1" oninput="applyInspectorPos()">
+        <span class="axis">Y</span>
+        <input type="number" id="obj-py" step="0.1" oninput="applyInspectorPos()">
+        <span class="axis">Z</span>
+        <input type="number" id="obj-pz" step="0.1" oninput="applyInspectorPos()">
+      </div>
+
+      <!-- Rotation -->
+      <div class="insp-row">
+        <span class="insp-label">Rotation</span>
+        <span class="axis">X</span>
+        <input type="number" id="obj-rx" step="1" oninput="applyInspectorRot()">
+        <span class="axis">Y</span>
+        <input type="number" id="obj-ry" step="1" oninput="applyInspectorRot()">
+        <span class="axis">Z</span>
+        <input type="number" id="obj-rz" step="1" oninput="applyInspectorRot()">
+      </div>
+
+      <div class="insp-sep"></div>
+
+      <!-- Wall dimensions (shown for walls) -->
+      <div id="insp-wall-dims" class="insp-row" style="display:none;">
+        <span class="insp-label">Dimensions</span>
+        <span class="axis">W</span>
+        <input type="number" id="obj-ww" step="0.1" min="0.1" oninput="applyInspectorDims()">
+        <span class="axis">H</span>
+        <input type="number" id="obj-wh" step="0.1" min="0.1" oninput="applyInspectorDims()">
+        <span class="axis">D</span>
+        <input type="number" id="obj-wd" step="0.05" min="0.05" oninput="applyInspectorDims()">
+      </div>
+
+      <!-- Scale (shown for models) -->
+      <div id="insp-scale-row" class="insp-row" style="display:none;">
+        <span class="insp-label">Scale</span>
+        <span class="axis">S</span>
+        <input type="number" id="obj-scale" step="0.05" min="0.01" oninput="applyInspectorScale()">
+      </div>
+
+    </div>
   </div>
 
   <div id="editor-panel">
@@ -586,9 +703,9 @@
   </div>
 
   <a-scene>
-    <a-entity id="rig" position="0 0 0" wasd-controls room-collider>
+    <a-entity id="rig" position="0 0 0" room-collider fly-camera>
 
-      <a-camera look-controls wasd-controls="enabled: false">
+      <a-camera>
         <!-- Desktop mouse cursor -->
         <a-cursor cursor="rayOrigin: mouse"
           raycaster="objects: [data-room]; far: 100"
@@ -629,6 +746,84 @@
   </a-scene>
 
   <script>
+    // ── Fly camera — desktop free-fly: right-drag look, scroll zoom, WASD/QE fly ─
+    AFRAME.registerComponent('fly-camera', {
+      init: function () {
+        this._pitch  = 0;
+        this._yaw    = 0;
+        this._keys   = {};
+        this._rDown  = false; // right mouse held
+        this._lx     = 0;
+        this._ly     = 0;
+        this._camEl  = null;
+
+        const scene  = this.el.sceneEl;
+        const canvas = scene.canvas;
+
+        // Prevent right-click context menu on canvas
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+        canvas.addEventListener('mousedown', e => {
+          if (scene.is('vr-mode') || e.button !== 2) return;
+          this._rDown = true;
+          this._lx = e.clientX;
+          this._ly = e.clientY;
+        });
+
+        canvas.addEventListener('mousemove', e => {
+          if (!this._rDown || scene.is('vr-mode')) return;
+          const dx = e.clientX - this._lx;
+          const dy = e.clientY - this._ly;
+          this._lx = e.clientX;
+          this._ly = e.clientY;
+          this._yaw   -= dx * 0.003;
+          this._pitch -= dy * 0.003;
+          this._pitch  = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, this._pitch));
+          this.el.object3D.rotation.order = 'YXZ';
+          this.el.object3D.rotation.y = this._yaw;
+          if (this._camEl) this._camEl.object3D.rotation.x = this._pitch;
+        });
+
+        window.addEventListener('mouseup', e => {
+          if (e.button === 2) this._rDown = false;
+        });
+
+        canvas.addEventListener('wheel', e => {
+          if (scene.is('vr-mode')) return;
+          e.preventDefault();
+          const fwd = new THREE.Vector3(0, 0, -1).applyEuler(
+            new THREE.Euler(this._pitch, this._yaw, 0, 'YXZ')
+          );
+          this.el.object3D.position.addScaledVector(fwd, -e.deltaY * 0.012);
+        }, { passive: false });
+
+        window.addEventListener('keydown', e => { this._keys[e.code] = true; });
+        window.addEventListener('keyup',   e => { this._keys[e.code] = false; });
+      },
+
+      tick: function (time, delta) {
+        if (this.el.sceneEl.is('vr-mode')) return;
+        if (!this._camEl) {
+          this._camEl = this.el.querySelector('a-camera');
+          if (!this._camEl) return;
+          this._yaw   = this.el.object3D.rotation.y;
+          this._pitch = this._camEl.object3D.rotation.x;
+        }
+
+        const speed = 0.007 * delta;
+        const fwd   = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(this._pitch, this._yaw, 0, 'YXZ'));
+        const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, this._yaw, 0, 'YXZ'));
+        const up    = new THREE.Vector3(0, 1, 0);
+
+        if (this._keys['KeyW'] || this._keys['ArrowUp'])    this.el.object3D.position.addScaledVector(fwd,   speed);
+        if (this._keys['KeyS'] || this._keys['ArrowDown'])  this.el.object3D.position.addScaledVector(fwd,  -speed);
+        if (this._keys['KeyA'] || this._keys['ArrowLeft'])  this.el.object3D.position.addScaledVector(right, -speed);
+        if (this._keys['KeyD'] || this._keys['ArrowRight']) this.el.object3D.position.addScaledVector(right,  speed);
+        if (this._keys['KeyE']) this.el.object3D.position.addScaledVector(up,  speed);
+        if (this._keys['KeyQ']) this.el.object3D.position.addScaledVector(up, -speed);
+      }
+    });
+
     // ── Arc teleporter component ──────────────────────────────────
     AFRAME.registerComponent('arc-teleporter', {
       init: function () {
@@ -956,6 +1151,9 @@
           const w = walls.find(w => w.id === this.grabbed.id);
           if (w) { w.position.x = newPos.x; w.position.y = newPos.y; w.position.z = newPos.z; }
         }
+
+        // Keep inspector in sync if this object is currently selected
+        if (typeof selectedEl !== 'undefined' && selectedEl === grabEl) refreshInspector();
       },
 
       release: function () {
@@ -985,6 +1183,7 @@
         this._push  = new THREE.Vector3();
       },
       tick: function () {
+        if (!this.el.sceneEl.is('vr-mode')) return; // desktop: free-fly, no collision
         const pos   = this.el.object3D.position;
         const limit = 4.6;
         if (pos.x >  limit) pos.x =  limit;
@@ -1483,6 +1682,438 @@
       setTimeout(() => statusMessage.classList.remove('active'), 3000);
     }
 
+    // ── Transform Gizmo ───────────────────────────────────────────
+    const GC = { x: 0xe74c3c, y: 0x2ecc71, z: 0x3498db };  // base colors
+    const GH = { x: 0xffaa00, y: 0x00ff88, z: 0x44aaff };  // hover/active colors
+
+    class TransformGizmo {
+      constructor() {
+        this.target      = null;
+        this.mode        = 'translate';
+        this._drag       = null;
+        this._hitStarted = false;
+        this._rc         = new THREE.Raycaster();
+        this._camera     = null;
+        this._canvas     = null;
+        this._handles    = []; // { mesh, axis, type }
+
+        this.group   = new THREE.Group();
+        this._tGroup = new THREE.Group();
+        this._rGroup = new THREE.Group();
+        this.group.add(this._tGroup, this._rGroup);
+        this.group.visible = false;
+
+        this._buildArrows();
+        this._buildRings();
+
+        // White center sphere
+        const cSph = new THREE.Mesh(
+          new THREE.SphereGeometry(0.055, 8, 8),
+          new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false })
+        );
+        cSph.renderOrder = 999;
+        this.group.add(cSph);
+      }
+
+      _mat(axis) {
+        return new THREE.MeshBasicMaterial({ color: GC[axis], depthTest: false, transparent: true, opacity: 0.92 });
+      }
+
+      _buildArrows() {
+        const shaft = new THREE.CylinderGeometry(0.022, 0.022, 0.52, 8);
+        const cone  = new THREE.ConeGeometry(0.062, 0.18, 8);
+        const cfg   = [
+          { axis: 'x', sP:[0.26,0,0], sR:[0,0,-Math.PI/2], cP:[0.61,0,0], cR:[0,0,-Math.PI/2] },
+          { axis: 'y', sP:[0,0.26,0], sR:[0,0,0],           cP:[0,0.61,0], cR:[0,0,0]           },
+          { axis: 'z', sP:[0,0,0.26], sR:[Math.PI/2,0,0],   cP:[0,0,0.61], cR:[Math.PI/2,0,0]  },
+        ];
+        cfg.forEach(({ axis, sP, sR, cP, cR }) => {
+          [shaft, cone].forEach((geo, i) => {
+            const m = new THREE.Mesh(geo.clone(), this._mat(axis));
+            m.position.set(...(i === 0 ? sP : cP));
+            m.rotation.set(...(i === 0 ? sR : cR));
+            m.renderOrder = 999;
+            m.userData = { axis, type: 'translate' };
+            this._tGroup.add(m);
+            this._handles.push({ mesh: m, axis, type: 'translate' });
+          });
+        });
+      }
+
+      _buildRings() {
+        const geo = new THREE.TorusGeometry(0.78, 0.038, 8, 56);
+        const cfg = [
+          { axis: 'x', rot: [0, Math.PI/2, 0] },
+          { axis: 'y', rot: [Math.PI/2, 0, 0]  },
+          { axis: 'z', rot: [0, 0, 0]           },
+        ];
+        cfg.forEach(({ axis, rot }) => {
+          const m = new THREE.Mesh(geo.clone(), this._mat(axis));
+          m.rotation.set(...rot);
+          m.renderOrder = 999;
+          m.userData = { axis, type: 'rotate' };
+          this._rGroup.add(m);
+          this._handles.push({ mesh: m, axis, type: 'rotate' });
+        });
+      }
+
+      init(sceneObj3D, camera, canvas) {
+        this._camera = camera;
+        this._canvas = canvas;
+        sceneObj3D.add(this.group);
+      }
+
+      attach(el) {
+        this.target = el;
+        this.group.visible = true;
+        this._applyMode();
+        this.update();
+      }
+
+      detach() {
+        this.target = null;
+        this.group.visible = false;
+        this._drag = null;
+        this._hitStarted = false;
+      }
+
+      setMode(mode) {
+        this.mode = mode;
+        this._applyMode();
+        document.querySelectorAll('.gizmo-mode-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.mode === mode);
+        });
+      }
+
+      _applyMode() {
+        this._tGroup.visible = this.mode === 'translate';
+        this._rGroup.visible = this.mode === 'rotate';
+      }
+
+      update() {
+        if (!this.target || !this._camera) return;
+        const wp = new THREE.Vector3();
+        this.target.object3D.getWorldPosition(wp);
+        this.group.position.copy(wp);
+        const cp = new THREE.Vector3();
+        this._camera.getWorldPosition(cp);
+        const s = Math.max(0.25, cp.distanceTo(wp) * 0.19);
+        this.group.scale.setScalar(s);
+      }
+
+      _ndc(e) {
+        const r = this._canvas.getBoundingClientRect();
+        return new THREE.Vector2(
+          ((e.clientX - r.left) / r.width)  * 2 - 1,
+          -((e.clientY - r.top) / r.height) * 2 + 1
+        );
+      }
+
+      _activeHandles() {
+        return this._handles.filter(h => h.type === this.mode).map(h => h.mesh);
+      }
+
+      // Closest t along lineDir from linePoint to the given ray
+      _lineT(ray, linePoint, lineDir) {
+        const w = new THREE.Vector3().subVectors(ray.origin, linePoint);
+        const b = lineDir.dot(ray.direction);
+        const denom = 1 - b * b;
+        if (Math.abs(denom) < 1e-10) return 0;
+        return (b * ray.direction.dot(w) - lineDir.dot(w)) / denom;
+      }
+
+      // Ray–plane intersection point
+      _rayPlane(ray, normal, point) {
+        const denom = normal.dot(ray.direction);
+        if (Math.abs(denom) < 1e-6) return null;
+        const t = normal.dot(new THREE.Vector3().subVectors(point, ray.origin)) / denom;
+        return t < 0 ? null : ray.origin.clone().addScaledVector(ray.direction, t);
+      }
+
+      _angleOnPlane(axis, v) {
+        if (axis === 'x') return Math.atan2(v.z, v.y);
+        if (axis === 'y') return Math.atan2(v.x, v.z);
+        return Math.atan2(v.y, v.x);
+      }
+
+      _axisVec(axis) {
+        return new THREE.Vector3(axis==='x'?1:0, axis==='y'?1:0, axis==='z'?1:0);
+      }
+
+      onMouseDown(e) {
+        if (!this.target || !this.group.visible) return false;
+        const ndc = this._ndc(e);
+        this._rc.setFromCamera(ndc, this._camera);
+        const hits = this._rc.intersectObjects(this._activeHandles(), false);
+        if (!hits.length) return false;
+
+        this._hitStarted = true;
+        const { axis, type } = hits[0].object.userData;
+
+        // Highlight active axis handles
+        this._handles.forEach(h => {
+          h.mesh.material.color.setHex(h.axis === axis && h.type === type ? GH[axis] : GC[h.axis]);
+        });
+
+        const wp = new THREE.Vector3();
+        this.target.object3D.getWorldPosition(wp);
+        const av = this._axisVec(axis);
+
+        if (type === 'translate') {
+          this._drag = {
+            type, axis, av,
+            startWorld: wp.clone(),
+            startT: this._lineT(this._rc.ray, wp, av),
+          };
+        } else {
+          const hitPt = this._rayPlane(this._rc.ray, av, wp);
+          if (!hitPt) return true;
+          const toHit = new THREE.Vector3().subVectors(hitPt, wp).normalize();
+          this._drag = {
+            type, axis, av, center: wp.clone(),
+            startAngle: this._angleOnPlane(axis, toHit),
+            startRot: { x: this.target.object3D.rotation.x, y: this.target.object3D.rotation.y, z: this.target.object3D.rotation.z },
+          };
+        }
+        return true;
+      }
+
+      onMouseMove(e) {
+        if (!this._drag || !this.target) return;
+        const ndc = this._ndc(e);
+        this._rc.setFromCamera(ndc, this._camera);
+        const d = this._drag;
+
+        if (d.type === 'translate') {
+          const t     = this._lineT(this._rc.ray, d.startWorld, d.av);
+          const delta = t - d.startT;
+          const newW  = d.startWorld.clone().addScaledVector(d.av, delta);
+
+          // Convert world pos → parent local space
+          const parent = this.target.object3D.parent;
+          if (parent) {
+            const inv = new THREE.Matrix4().copy(parent.matrixWorld).invert();
+            newW.applyMatrix4(inv);
+          }
+          this.target.object3D.position.copy(newW);
+
+          if (selectedType === 'wall') {
+            const p = this.target.object3D.position;
+            const w = walls.find(w => w.id === this.target.id);
+            if (w) { w.position.x = p.x; w.position.y = p.y; w.position.z = p.z; }
+          }
+
+        } else {
+          const hitPt = this._rayPlane(this._rc.ray, d.av, d.center);
+          if (!hitPt) return;
+          const toHit = new THREE.Vector3().subVectors(hitPt, d.center).normalize();
+          const delta = this._angleOnPlane(d.axis, toHit) - d.startAngle;
+          const rot   = this.target.object3D.rotation;
+          rot.x = d.startRot.x + (d.axis === 'x' ? delta : 0);
+          rot.y = d.startRot.y + (d.axis === 'y' ? delta : 0);
+          rot.z = d.startRot.z + (d.axis === 'z' ? delta : 0);
+
+          if (selectedType === 'wall') {
+            const w = walls.find(w => w.id === this.target.id);
+            if (w) w.rotY = THREE.MathUtils.radToDeg(rot.y);
+          }
+        }
+
+        this.update();
+        refreshInspector();
+      }
+
+      onMouseUp() {
+        if (!this._drag) return;
+        this._handles.forEach(h => h.mesh.material.color.setHex(GC[h.axis]));
+        this._drag = null;
+      }
+    }
+
+    let gizmo; // initialized after scene loads
+
+    // ── Object Inspector — click-to-select in desktop browser ─────
+    let selectedEl   = null;
+    let selectedType = null; // 'wall' | 'model'
+
+    function selectObject(el, type) {
+      if (selectedEl === el) return;
+      if (selectedEl) deselectObject(false);
+      selectedEl   = el;
+      selectedType = type;
+
+      // Emissive highlight
+      el.object3D.traverse(child => {
+        if (!child.isMesh) return;
+        if (!child.userData._origEmissive) {
+          child.userData._origEmissive = child.material.emissive
+            ? child.material.emissive.clone() : new THREE.Color(0, 0, 0);
+        }
+        child.material.emissive = new THREE.Color(0.15, 0.15, 0.0);
+        child.material.emissiveIntensity = 1;
+      });
+
+      if (gizmo) gizmo.attach(el);
+      refreshInspector();
+      document.getElementById('obj-inspector').style.display = 'block';
+    }
+
+    function deselectObject(hide) {
+      if (hide === undefined) hide = true;
+      if (!selectedEl) return;
+      selectedEl.object3D.traverse(child => {
+        if (!child.isMesh || !child.userData._origEmissive) return;
+        child.material.emissive.copy(child.userData._origEmissive);
+        child.material.emissiveIntensity = 0;
+      });
+      selectedEl   = null;
+      selectedType = null;
+      if (gizmo) gizmo.detach();
+      if (hide) document.getElementById('obj-inspector').style.display = 'none';
+    }
+
+    function refreshInspector() {
+      if (!selectedEl) return;
+      const pos = selectedEl.object3D.position;
+      const rot = selectedEl.object3D.rotation;
+
+      document.getElementById('obj-px').value = +pos.x.toFixed(3);
+      document.getElementById('obj-py').value = +pos.y.toFixed(3);
+      document.getElementById('obj-pz').value = +pos.z.toFixed(3);
+      document.getElementById('obj-rx').value = +THREE.MathUtils.radToDeg(rot.x).toFixed(1);
+      document.getElementById('obj-ry').value = +THREE.MathUtils.radToDeg(rot.y).toFixed(1);
+      document.getElementById('obj-rz').value = +THREE.MathUtils.radToDeg(rot.z).toFixed(1);
+
+      if (selectedType === 'wall') {
+        const w = walls.find(w => w.id === selectedEl.id);
+        document.getElementById('obj-insp-name').textContent = `Wall — ${selectedEl.id}`;
+        document.getElementById('insp-wall-dims').style.display = 'flex';
+        document.getElementById('insp-scale-row').style.display = 'none';
+        if (w) {
+          document.getElementById('obj-ww').value = w.width;
+          document.getElementById('obj-wh').value = w.height;
+          document.getElementById('obj-wd').value = w.depth;
+        }
+      } else {
+        const m = loadedModels.find(m => m.id === selectedEl.id);
+        document.getElementById('obj-insp-name').textContent = m ? m.name : selectedEl.id;
+        document.getElementById('insp-wall-dims').style.display = 'none';
+        document.getElementById('insp-scale-row').style.display = 'flex';
+        const s = selectedEl.object3D.scale;
+        document.getElementById('obj-scale').value = +s.x.toFixed(3);
+      }
+    }
+
+    // ── Inspector input handlers ───────────────────────────────────
+    function applyInspectorPos() {
+      if (!selectedEl) return;
+      const x = parseFloat(document.getElementById('obj-px').value) || 0;
+      const y = parseFloat(document.getElementById('obj-py').value) || 0;
+      const z = parseFloat(document.getElementById('obj-pz').value) || 0;
+      selectedEl.object3D.position.set(x, y, z);
+      if (selectedType === 'wall') {
+        const w = walls.find(w => w.id === selectedEl.id);
+        if (w) { w.position.x = x; w.position.y = y; w.position.z = z; }
+      }
+    }
+
+    function applyInspectorRot() {
+      if (!selectedEl) return;
+      const rx = parseFloat(document.getElementById('obj-rx').value) || 0;
+      const ry = parseFloat(document.getElementById('obj-ry').value) || 0;
+      const rz = parseFloat(document.getElementById('obj-rz').value) || 0;
+      selectedEl.object3D.rotation.set(
+        THREE.MathUtils.degToRad(rx),
+        THREE.MathUtils.degToRad(ry),
+        THREE.MathUtils.degToRad(rz)
+      );
+      if (selectedType === 'wall') {
+        const w = walls.find(w => w.id === selectedEl.id);
+        if (w) w.rotY = ry;
+      }
+    }
+
+    function applyInspectorDims() {
+      if (!selectedEl || selectedType !== 'wall') return;
+      const w = walls.find(w => w.id === selectedEl.id);
+      if (!w) return;
+      const width  = Math.max(0.1, parseFloat(document.getElementById('obj-ww').value) || 0.1);
+      const height = Math.max(0.1, parseFloat(document.getElementById('obj-wh').value) || 0.1);
+      const depth  = Math.max(0.05, parseFloat(document.getElementById('obj-wd').value) || 0.05);
+      w.width = width; w.height = height; w.depth = depth;
+      selectedEl.setAttribute('width',  width);
+      selectedEl.setAttribute('height', height);
+      selectedEl.setAttribute('depth',  depth);
+    }
+
+    function applyInspectorScale() {
+      if (!selectedEl || selectedType !== 'model') return;
+      const s = Math.max(0.01, parseFloat(document.getElementById('obj-scale').value) || 0.01);
+      selectedEl.object3D.scale.set(s, s, s);
+    }
+
+    // ── Canvas mouse → gizmo + object selection ───────────────────
+    function findSelectableAncestor(obj3d) {
+      let cur = obj3d;
+      while (cur) {
+        if (cur.el && cur.el.classList &&
+            (cur.el.classList.contains('vr-wall') || cur.el.classList.contains('vr-grabbable'))) {
+          return cur.el;
+        }
+        cur = cur.parent;
+      }
+      return null;
+    }
+
+    function initObjectPicker() {
+      const scene  = document.querySelector('a-scene');
+      const canvas = scene.canvas;
+      const rc     = new THREE.Raycaster();
+      const mouse  = new THREE.Vector2();
+
+      canvas.addEventListener('mousedown', (e) => {
+        if (scene.is('vr-mode')) return;
+        gizmo.onMouseDown(e);
+      });
+
+      canvas.addEventListener('mousemove', (e) => {
+        if (scene.is('vr-mode')) return;
+        gizmo.onMouseMove(e);
+      });
+
+      canvas.addEventListener('mouseup', (e) => {
+        gizmo.onMouseUp(e);
+      });
+
+      canvas.addEventListener('click', (e) => {
+        if (scene.is('vr-mode')) return;
+        // Gizmo consumed this interaction — don't change selection
+        if (gizmo._hitStarted) { gizmo._hitStarted = false; return; }
+
+        const rect = canvas.getBoundingClientRect();
+        mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+        mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+
+        rc.setFromCamera(mouse, scene.camera);
+
+        const selectableEls = [...document.querySelectorAll('.vr-wall, .vr-grabbable')];
+        const meshes = [];
+        selectableEls.forEach(el => {
+          el.object3D.traverse(child => { if (child.isMesh) meshes.push(child); });
+        });
+
+        const hits = rc.intersectObjects(meshes, false);
+        if (hits.length > 0) {
+          const found = findSelectableAncestor(hits[0].object);
+          if (found) {
+            selectObject(found, found.classList.contains('vr-wall') ? 'wall' : 'model');
+            return;
+          }
+        }
+        deselectObject();
+      });
+    }
+
     // ── Init ──────────────────────────────────────────────────────
     document.querySelector('a-scene').addEventListener('loaded', () => {
       renderScene();
@@ -1490,6 +2121,15 @@
       renderRoomSelect();
       renderWallRoomSelect();
       renderWallsList();
+
+      const scene = document.querySelector('a-scene');
+      gizmo = new TransformGizmo();
+      gizmo.init(scene.object3D, scene.camera, scene.canvas);
+
+      initObjectPicker();
+
+      // Keep gizmo position/scale in sync every frame
+      (function loop() { requestAnimationFrame(loop); if (gizmo) gizmo.update(); })();
     });
   </script>
 </body>
